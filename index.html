@@ -414,10 +414,18 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
     <div class="entries-block">
       <div class="entries-header">
         <h2>Registro</h2>
-        <div class="entries-filter">
-          <button class="filter-btn active" onclick="setFilter('all',this)">Todas</button>
-          <button class="filter-btn" onclick="setFilter('secando',this)">Secando</button>
-          <button class="filter-btn" onclick="setFilter('seco',this)">Secas</button>
+        <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:.5rem;background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:.3rem .7rem">
+            <span style="font-size:.62rem;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap">÷</span>
+            <select id="cosechar-divisor" onchange="renderEntries()" style="background:transparent;border:none;color:var(--accent);font-family:'DM Mono',monospace;font-size:.82rem;outline:none;cursor:pointer;padding:0">
+              <option value="1">1</option>
+            </select>
+          </div>
+          <div class="entries-filter">
+            <button class="filter-btn active" onclick="setFilter('all',this)">Todas</button>
+            <button class="filter-btn" onclick="setFilter('secando',this)">Secando</button>
+            <button class="filter-btn" onclick="setFilter('seco',this)">Secas</button>
+          </div>
         </div>
       </div>
       <div id="entries-container"><div class="empty-msg">Aún no hay cosechas registradas.</div></div>
@@ -455,7 +463,6 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
         <select id="resumen-divisor" onchange="renderResumen()" style="background:transparent;border:none;color:var(--accent);font-family:'DM Mono',monospace;font-size:.88rem;outline:none;cursor:pointer;padding:0 .2rem">
           <option value="1" selected>1</option>
         </select>
-        <span style="font-size:.65rem;color:var(--text3)">personas</span>
       </div>
       <!-- Export -->
       <div style="display:flex;gap:.6rem;flex-wrap:wrap">
@@ -878,6 +885,14 @@ function addEntry(){
 function setFilter(f,btn){activeFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderEntries();}
 function renderEntries(){
   if(!currentUser)return;
+
+  // Populate divisor if needed
+  const divSel = document.getElementById('cosechar-divisor');
+  if(divSel && divSel.options.length < 2){
+    for(let i=2;i<=45;i++){const o=document.createElement('option');o.value=i;o.textContent=i;divSel.appendChild(o);}
+  }
+  const cdiv = divSel ? (parseInt(divSel.value)||1) : 1;
+  const cfmt = v => (v/cdiv).toFixed(1);
   const secN=entries.filter(e=>e.estado==='secando').length;
   const banner=document.getElementById('drying-banner');
   if(secN>0){banner.classList.remove('hidden');document.getElementById('drying-banner-title').textContent=`⏳ Tenés ${secN} cosecha${secN>1?'s':''} secando — actualizá cuando estén listas`;}
@@ -888,11 +903,13 @@ function renderEntries(){
   const rows=[...filtered].reverse().map(e=>{
     const p=plants.find(x=>x.nombre===e.planta)||{color:'#7fb85a'};
     const d=e.fecha.split('-').reverse().join('/');
-    let wH,sH,aH,cardActions,cardWeight;
+    let wH,sH,aH,cardActions,cardWeight,wDiv='';
     if(e.estado==='secando'){
       sH=`<span class="status-badge secando">⏳ secando</span>`;
       const fw=e.pesoFresco?`${e.pesoFresco.toFixed(1)}g fresco`:'sin peso fresco';
+      const fwDiv=e.pesoFresco?`${cfmt(e.pesoFresco)}g`:'—';
       wH=`<div><span class="w-drying">${fw}</span><div class="w-sub">seco: pendiente</div></div>`;
+      wDiv=`<div><span class="w-drying">${fwDiv}</span></div>`;
       aH=`<div class="action-cell"><button class="btn-update" onclick="openSecoModal(${e.id})">+ seco</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕</button></div>`;
       cardWeight=`<span class="w-drying">${fw}</span><div class="w-sub" style="font-size:.65rem;color:var(--text3)">seco: pendiente</div>`;
       cardActions=`
@@ -903,11 +920,12 @@ function renderEntries(){
       const fw=e.pesoFresco?`fresco: ${e.pesoFresco.toFixed(1)}g`:'';
       const ratio=(e.pesoFresco&&e.pesoSeco)?` · ${((e.pesoSeco/e.pesoFresco)*100).toFixed(0)}% ratio`:'';
       wH=`<div><span class="w-dry">${e.pesoSeco.toFixed(1)} g</span>${(fw||ratio)?`<div class="w-sub">${fw}${ratio}</div>`:''}</div>`;
+      wDiv=`<div><span class="w-dry">${cfmt(e.pesoSeco)} g</span></div>`;
       cardWeight=`<span class="w-dry" style="font-size:.9rem;font-weight:500">${e.pesoSeco.toFixed(1)} g seco</span>${fw?`<div class="w-sub" style="font-size:.65rem;color:var(--text3)">${fw}${ratio}</div>`:''}`;
       cardActions=`<button onclick="deleteEntry(${e.id})" style="background:none;border:1px solid var(--border);color:var(--accent3);">✕ Eliminar entrada</button>`;
       aH=`<div class="action-cell"><button class="btn-del" onclick="deleteEntry(${e.id})">✕</button></div>`;
     }
-    const tableRow=`<tr><td>${d}</td><td><span class="plant-badge"><span class="plant-badge-dot" style="background:${p.color}"></span>${e.planta}</span></td><td>${wH}</td><td>${sH}</td><td style="font-size:.68rem;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.nota||''}">${e.nota||'—'}</td><td>${aH}</td></tr>`;
+    const tableRow=`<tr><td>${d}</td><td><span class="plant-badge"><span class="plant-badge-dot" style="background:${p.color}"></span>${e.planta}</span></td><td>${wH}</td>${cdiv>1?`<td>${wDiv}</td>`:''}<td>${sH}</td><td style="font-size:.68rem;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.nota||''}">${e.nota||'—'}</td><td>${aH}</td></tr>`;
     const card=`<div class="entry-card">
       <div class="entry-card-top">
         <div class="entry-card-name"><span style="width:8px;height:8px;border-radius:50%;background:${p.color};display:inline-block;flex-shrink:0"></span>${e.planta}</div>
@@ -923,9 +941,15 @@ function renderEntries(){
     return {tableRow, card};
   });
 
-  container.innerHTML=
-    `<table class="entries-table"><thead><tr><th>Fecha</th><th>Planta</th><th>Peso</th><th>Estado</th><th>Nota</th><th></th></tr></thead><tbody>${rows.map(r=>r.tableRow).join('')}</tbody></table>`+
-    `<div class="entry-cards">${rows.map(r=>r.card).join('')}</div>`;
+  container.innerHTML=`<table class="entries-table">
+    <thead><tr>
+      <th>Fecha</th><th>Planta</th><th>Peso total</th>
+      ${cdiv>1?`<th>÷ ${cdiv}</th>`:''}
+      <th>Estado</th><th>Nota</th><th></th>
+    </tr></thead>
+    <tbody>${rows.map(r=>r.tableRow).join('')}</tbody>
+  </table>`+
+  `<div class="entry-cards">${rows.map(r=>r.card).join('')}</div>`;
 }
 function deleteEntry(id){entries=entries.filter(e=>e.id!==id);scheduleSave();renderEntries();updateTotals();showToast('Entrada eliminada');}
 function updateTotals(){
