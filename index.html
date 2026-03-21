@@ -109,7 +109,6 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
 .s-val{font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--white);line-height:1;}
 .s-unit{font-size:.8rem;color:var(--text2);}
 .s-sub{font-size:.68rem;color:var(--text3);margin-top:.3rem;}
-/* Mini Stats (Inside Accordions) */
 .mini-stats{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.8rem;margin-bottom:1.4rem;}
 .mini-stats .stat-card{padding:.9rem 1rem;}
 .mini-stats .s-label{font-size:.58rem;margin-bottom:.3rem;}
@@ -169,7 +168,6 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
 .btn-outline.green:hover{background:rgba(127,184,90,.15);}
 .btn-outline.danger:hover{border-color:var(--accent3);color:var(--accent3);background:rgba(224,122,95,.08);}
 
-/* Estilos de Botones de Tabla Escritorio (Action Cell) */
 .action-cell { display:flex; gap:.5rem; justify-content:flex-end; align-items:center; }
 .btn-update { background:rgba(200,168,75,.12); border:1px solid rgba(200,168,75,.3); color:var(--accent2); font-family:'DM Mono',monospace; font-size:.7rem; padding:.4rem .7rem; border-radius:3px; cursor:pointer; transition:all .15s; letter-spacing:.05em; white-space:nowrap; }
 .btn-update:hover { background:rgba(200,168,75,.2); }
@@ -317,7 +315,6 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
         <button type="button" class="auth-tab" onclick="switchAuthTab('register',this)">Crear cuenta</button>
       </div>
       
-      <!-- Usamos etiqueta form real para asegurar la interacción en Desktop -->
       <form id="auth-login" class="auth-form" onsubmit="event.preventDefault(); doLogin();">
         <div class="form-group"><label>Usuario</label><input type="text" id="login-user" placeholder="tu usuario" autocomplete="username"/></div>
         <div class="form-group"><label>Contraseña</label><input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/></div>
@@ -376,13 +373,19 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
     <h1 style="font-family:'Playfair Display',serif;font-size:3.2rem;color:var(--white);letter-spacing:-.02em;line-height:1;text-align:center;margin-bottom:.5rem">Jardín</h1>
     <div style="width:36px;height:1px;background:var(--border);margin:.5rem auto;"></div>
     <p style="font-size:.72rem;color:var(--text3);letter-spacing:.22em;text-transform:uppercase;text-align:center;margin-bottom:.4rem">Registro de cosecha</p>
-    <p style="font-size:.82rem;color:var(--accent);letter-spacing:.06em;text-align:center;margin-bottom:3rem" id="inicio-user-label"></p>
+    <p style="font-size:.82rem;color:var(--accent);letter-spacing:.06em;text-align:center;margin-bottom:2rem" id="inicio-user-label"></p>
 
-    <!-- Quick actions -->
-    <div style="display:flex;gap:.8rem;flex-wrap:wrap;justify-content:center">
+    <!-- ESTADO VACÍO (Nuevo Usuario) -->
+    <div id="inicio-welcome" style="display:none; flex-direction:column; align-items:center; gap:1.2rem; margin-bottom:2rem; background:rgba(127,184,90,.05); padding:2rem; border:1px dashed var(--accent); border-radius:6px; max-width:440px; text-align:center;">
+        <div style="font-size:.85rem; color:var(--text2); line-height:1.6;">¡Tu jardín está vacío!<br>Para empezar a registrar tus cosechas, el primer paso es agregar al menos una genética.</div>
+        <button onclick="openPlantModal()" style="padding:.9rem 1.8rem;background:var(--accent);color:var(--bg);border:none;font-family:'DM Mono',monospace;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:500;transition:background .2s;box-shadow:0 4px 15px rgba(127,184,90,.3)">🌱 Agregar primera planta</button>
+    </div>
+
+    <!-- BOTONES ESTÁNDAR (Usuario con plantas) -->
+    <div id="inicio-actions" style="display:flex;gap:.8rem;flex-wrap:wrap;justify-content:center">
+      <button onclick="openPlantModal()" style="padding:.8rem 1.6rem;background:none;border:1px solid rgba(127,184,90,.35);color:var(--accent);font-family:'DM Mono',monospace;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s">🌱 Nueva Planta</button>
       <button onclick="showTabByName('cosechar')" style="padding:.8rem 1.6rem;background:var(--accent);color:var(--bg);border:none;font-family:'DM Mono',monospace;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:500;transition:background .2s">✦ Nueva cosecha</button>
-      <button onclick="showTabByName('cosechas')" style="padding:.8rem 1.6rem;background:none;border:1px solid rgba(127,184,90,.35);color:var(--accent);font-family:'DM Mono',monospace;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s">◈ Ver cosechas</button>
-      <button onclick="showTabByName('resumen')" style="padding:.8rem 1.6rem;background:none;border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s">▤ Resumen</button>
+      <button onclick="showTabByName('cosechas')" style="padding:.8rem 1.6rem;background:none;border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s">◈ Ver cultivos</button>
     </div>
   </div>
 </section>
@@ -397,8 +400,23 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
     <div class="form-block">
       <h2>Nueva cosecha</h2>
       <div class="form-group"><label>Fecha de corte</label><input type="date" id="input-fecha"/></div>
-      <div class="form-group"><label>Grupo / Cultivo</label><select id="input-grupo" onchange="filterPlantsByGroup()"><option value="">— Todos —</option></select></div>
-      <div class="form-group"><label>Planta</label><select id="input-planta"><option value="">— Seleccionar —</option></select></div>
+      
+      <div class="form-group">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:.4rem">
+          <label style="margin-bottom:0">Grupo / Cultivo</label>
+          <span onclick="openGroupModal()" style="font-size:.65rem; color:var(--text2); cursor:pointer; letter-spacing:.05em; text-transform:uppercase; transition:color .15s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">+ Nuevo</span>
+        </div>
+        <select id="input-grupo" onchange="filterPlantsByGroup()"><option value="">— Todos —</option></select>
+      </div>
+      
+      <div class="form-group">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:.4rem">
+          <label style="margin-bottom:0">Planta</label>
+          <span onclick="openPlantModal()" style="font-size:.65rem; color:var(--accent); cursor:pointer; letter-spacing:.05em; text-transform:uppercase; font-weight:500">+ Nueva planta</span>
+        </div>
+        <select id="input-planta"><option value="">— Seleccionar —</option></select>
+      </div>
+      
       <div class="form-group">
         <label>Peso fresco (opcional)</label>
         <input type="number" id="input-peso-fresco" step="0.1" min="0" placeholder="— si lo pesás recién cortado —"/>
@@ -444,7 +462,6 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
       <button class="btn-outline green" onclick="openPlantModal(null,null)">+ Nueva planta</button>
     </div>
   </div>
-  <!-- Contenedor donde se insertan los Acordeones de Grupos -->
   <div id="groups-accordion-list"></div>
 </section>
 
@@ -471,8 +488,6 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
       </div>
     </div>
   </div>
-
-  <!-- Contenedor donde se insertan Totales Generales y Grupos en Acordeón -->
   <div id="resumen-accordion-list"></div>
 </section>
 </div>
@@ -604,8 +619,7 @@ const dbSet = async (path, data) => dbRef(path).set(data);
 let currentUser=null, groups=[], plants=[], entries=[], trash=[];
 let activeFilter='all', editingEntryId=null, saveTimer=null;
 
-// Track Accordion states consistently across re-renders
-const openAccs = new Set(['res-totales']); // Totales generales abierto por defecto
+const openAccs = new Set(['res-totales']); 
 
 function toggleAcc(id, headerEl) {
   if (openAccs.has(id)) openAccs.delete(id);
@@ -704,6 +718,18 @@ function bootApp(username,data){
   document.getElementById('splash-screen').classList.remove('hidden');
 }
 
+function updateInicioUI() {
+  const welcome = document.getElementById('inicio-welcome');
+  const actions = document.getElementById('inicio-actions');
+  if(plants.length === 0) {
+      welcome.style.display = 'flex';
+      actions.style.display = 'none';
+  } else {
+      welcome.style.display = 'none';
+      actions.style.display = 'flex';
+  }
+}
+
 function enterAppFromSplash() {
   document.getElementById('splash-screen').classList.add('hidden');
   document.getElementById('app').style.display = 'block';
@@ -717,6 +743,7 @@ function enterAppFromSplash() {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('tab-inicio').classList.add('active');
   
+  updateInicioUI();
   populateGroupSelect('input-grupo',true);
   filterPlantsByGroup();
   updateTotals();
@@ -751,6 +778,7 @@ function showTab(name,btn){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
+  if(name==='inicio')   updateInicioUI();
   if(name==='cosechar') renderEntries();
   if(name==='cosechas') renderGroupsIndex();
   if(name==='resumen')  renderResumen();
@@ -780,7 +808,6 @@ function moveToTrash(type, data, label) {
   trash.push({ id: ts, type, data, label, deletedAt: ts });
   scheduleSave();
   
-  // Show Toast
   lastTrashId = ts;
   clearTimeout(undoTimer);
   document.getElementById('undo-msg').textContent = `🗑️ ${label} eliminado`;
@@ -809,9 +836,8 @@ function restoreTrash(id) {
   trash.splice(itemIdx, 1);
   scheduleSave();
   
-  // Re-render
   filterPlantsByGroup(); populateGroupSelect('input-grupo',true);
-  updateTotals();
+  updateTotals(); updateInicioUI();
   if(document.getElementById('tab-cosechar').classList.contains('active')) renderEntries();
   if(document.getElementById('tab-cosechas').classList.contains('active')) renderGroupsIndex();
   if(document.getElementById('tab-resumen').classList.contains('active')) renderResumen();
@@ -855,16 +881,30 @@ function populateGroupSelect(selId,withAll){
   groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.nombre;sel.appendChild(o);});
   if(prev)sel.value=prev;
 }
+
 function filterPlantsByGroup(){
-  const gid=document.getElementById('input-grupo').value,sel=document.getElementById('input-planta'),prev=sel.value;
+  const gid=document.getElementById('input-grupo').value,
+        sel=document.getElementById('input-planta'),
+        prev=sel.value;
+
+  if(plants.length === 0) {
+    sel.innerHTML='<option value="">— No hay plantas (creá una) —</option>';
+    return;
+  }
+
   sel.innerHTML='<option value="">— Seleccionar —</option>';
   const filtered=gid?plants.filter(p=>p.grupoId===gid):plants;
+  
   if(!gid&&groups.length){
     groups.forEach(g=>{const gp=plants.filter(p=>p.grupoId===g.id);if(!gp.length)return;const grp=document.createElement('optgroup');grp.label=g.nombre;gp.forEach(p=>{const o=document.createElement('option');o.value=p.nombre;o.textContent=p.nombre;grp.appendChild(o);});sel.appendChild(grp);});
     const ung=plants.filter(p=>!p.grupoId);if(ung.length){const grp=document.createElement('optgroup');grp.label='Sin grupo';ung.forEach(p=>{const o=document.createElement('option');o.value=p.nombre;o.textContent=p.nombre;grp.appendChild(o);});sel.appendChild(grp);}
-  }else filtered.forEach(p=>{const o=document.createElement('option');o.value=p.nombre;o.textContent=p.nombre;sel.appendChild(o);});
+  }else {
+    filtered.forEach(p=>{const o=document.createElement('option');o.value=p.nombre;o.textContent=p.nombre;sel.appendChild(o);});
+  }
+  
   if(prev&&filtered.find(p=>p.nombre===prev))sel.value=prev;
 }
+
 function populatePlantGroupSel(selId,gid){
   const sel=document.getElementById(selId);sel.innerHTML='<option value="">— Sin grupo —</option>';
   groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.nombre;sel.appendChild(o);});
@@ -1097,9 +1137,25 @@ function confirmGroup(){
   const nombre=document.getElementById('mg-nombre').value.trim();
   if(!nombre){showToast('⚠ Ingresá un nombre.',true);return;}
   const eid=document.getElementById('mg-editing-id').value;
-  if(eid){const g=groups.find(x=>x.id===eid);g.nombre=nombre;g.desc=document.getElementById('mg-desc').value.trim();g.color=document.getElementById('mg-color').value;}
-  else{if(groups.find(g=>g.nombre===nombre)){showToast('⚠ Ya existe ese grupo.',true);return;}groups.push({id:'g_'+Date.now(),nombre,desc:document.getElementById('mg-desc').value.trim(),color:document.getElementById('mg-color').value});}
+  let newId = eid;
+  
+  if(eid){
+    const g=groups.find(x=>x.id===eid);
+    g.nombre=nombre;g.desc=document.getElementById('mg-desc').value.trim();g.color=document.getElementById('mg-color').value;
+  } else {
+    if(groups.find(g=>g.nombre===nombre)){showToast('⚠ Ya existe ese grupo.',true);return;}
+    newId = 'g_'+Date.now();
+    groups.push({id:newId,nombre,desc:document.getElementById('mg-desc').value.trim(),color:document.getElementById('mg-color').value});
+  }
+  
   scheduleSave();closeModal('modal-group');populateGroupSelect('input-grupo',true);filterPlantsByGroup();
+  
+  // Auto-select in form if we are in Cosechar tab
+  if(!eid && document.getElementById('tab-cosechar').classList.contains('active')) {
+    document.getElementById('input-grupo').value = newId;
+    filterPlantsByGroup();
+  }
+
   if(document.getElementById('tab-cosechas').classList.contains('active'))renderGroupsIndex();
   showToast(eid?'Grupo actualizado':`✓ "${nombre}" creado`);
 }
@@ -1155,8 +1211,16 @@ function confirmPlant(){
   
   if(eid){const idx=plants.findIndex(p=>p.id===eid);plants[idx]={...plants[idx],...data};}
   else{if(plants.find(p=>p.nombre===nombre)){showToast('⚠ Ya existe esa planta.',true);return;}plants.push({id:'p_'+Date.now(),...data});}
+  
   scheduleSave();closeModal('modal-plant');filterPlantsByGroup();
+  
+  // Auto-select in form if we are in Cosechar tab
+  if(!eid && document.getElementById('tab-cosechar').classList.contains('active')) {
+    document.getElementById('input-planta').value = nombre;
+  }
+  
   if(document.getElementById('tab-cosechas').classList.contains('active'))renderGroupsIndex();
+  updateInicioUI();
   showToast(eid?'Planta actualizada':`✓ ${nombre} agregada`);
 }
 function deletePlant(pid){
@@ -1165,6 +1229,7 @@ function deletePlant(pid){
     plants=plants.filter(x=>x.id!==pid);
     moveToTrash('plant', p, `Planta ${p.nombre}`);
     filterPlantsByGroup();
+    updateInicioUI();
     renderGroupsIndex();
   });
 }
@@ -1248,7 +1313,6 @@ function renderResumen(){
       </div>
       <div class="acc-content ${isOpen?'open':''}" id="${accId}">
         
-        <!-- Mini Stats Grid del Grupo -->
         <div class="stats-grid mini-stats">
           <div class="stat-card"><div class="s-label">Seco Total</div><div class="s-val" style="color:var(--accent)">${gDry.toFixed(1)}<span class="s-unit">g</span></div>${isDivided?`<div style="font-size:.7rem;color:var(--text3);margin-top:.2rem">/ ${fmt(gDry)}g</div>`:''}</div>
           <div class="stat-card"><div class="s-label">En Proceso</div><div class="s-val" style="color:var(--accent2)">${gDrying.toFixed(1)}<span class="s-unit">g</span></div></div>
