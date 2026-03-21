@@ -1119,6 +1119,15 @@ function confirmUpdateSeco(){
   showToast(`✓ ${val}g secos de ${e.planta}`);
 }
 
+function loadAllPlantPhotos() {
+  plants.forEach(p => {
+    const eid = p.id.replace(/'/g, "\\'");
+    if(document.getElementById('plant-photos-' + eid)) {
+      renderPhotoGallery(p.id, 'plant-photos-' + eid, false);
+    }
+  });
+}
+
 // ══════════════════════════════════════════════════
 //  COSECHAS (ACCORDIONS & PLANT CARDS)
 // ══════════════════════════════════════════════════
@@ -1191,6 +1200,7 @@ function renderGroupsIndex(){
   }
   
   document.getElementById('groups-accordion-list').innerHTML = html;
+  loadAllPlantPhotos();
 }
 
 function plantCardHTML(p, totals) {
@@ -1248,9 +1258,8 @@ function plantCardHTML(p, totals) {
       <button class="btn-plant-action" onclick="openPlantModal('${eid}')">Editar</button>
       <button class="btn-plant-action del" onclick="deletePlant('${eid}')">✕</button>
     </div>
-    <!-- Photo gallery (loaded async) -->
+    <!-- Photo gallery -->
     <div id="plant-photos-${eid}" class="photo-gallery" style="padding:.6rem 1.1rem .8rem;"></div>
-    <script>renderPhotoGallery('${p.id}','plant-photos-${eid}',false);<\/script>
   </div>`;
 }
 
@@ -1264,7 +1273,7 @@ function openGroupModal(gid){
   document.getElementById('mg-desc').value=g?(g.desc||''):'';
   document.getElementById('mg-color').value=g?g.color:'#7fb85a';
   document.getElementById('mg-editing-id').value=g?g.id:'';
-  document.getElementById('mg-return-to-plant').value=''; // normal open, no return
+  document.getElementById('mg-return-to-plant').value=''; 
   buildSwatches('mg-color-row','mg-color');
   document.getElementById('modal-group').classList.add('open');
   setTimeout(()=>document.getElementById('mg-nombre').focus(),200);
@@ -1299,7 +1308,6 @@ function confirmGroup(){
   if(document.getElementById('tab-cosechas').classList.contains('active'))renderGroupsIndex();
   showToast(eid?'Grupo actualizado':`✓ "${nombre}" creado`);
 
-  // If called from plant modal, re-open it and pre-select the new group
   if(returnToPlant){
     document.getElementById('modal-plant').classList.add('open');
     populatePlantGroupSel('mp-grupo', newId);
@@ -1355,7 +1363,7 @@ function openPlantModal(pid,presetGid){
   document.getElementById('ai-strain-source').value = '';
   document.getElementById('ai-error').style.display = 'none';
   document.getElementById('modal-plant').classList.add('open');
-  // Load photos
+
   currentPhotoPlantId = p ? p.id : null;
   document.getElementById('mp-photo-gallery').innerHTML = '';
   if (p) renderPhotoGallery(p.id, 'mp-photo-gallery', true);
@@ -1410,6 +1418,19 @@ function deletePlant(pid){
     updateInicioUI();
     renderGroupsIndex();
   });
+}
+
+function quickCreateGroup() {
+  closeModal('modal-plant');
+  document.getElementById('mg-title').textContent = 'Nuevo grupo';
+  document.getElementById('mg-nombre').value = '';
+  document.getElementById('mg-desc').value = '';
+  document.getElementById('mg-color').value = '#7fb85a';
+  document.getElementById('mg-editing-id').value = '';
+  document.getElementById('mg-return-to-plant').value = '1'; 
+  buildSwatches('mg-color-row','mg-color');
+  document.getElementById('modal-group').classList.add('open');
+  setTimeout(()=>document.getElementById('mg-nombre').focus(),200);
 }
 
 // ══════════════════════════════════════════════════
@@ -1751,7 +1772,7 @@ function exportPDF(grps, includeUngrouped) {
   <div class="footer">Generado por Jardín · Registro de cosecha · ${date}</div>
   </body></html>`;
 
-  // El método iframe asegura que se pueda imprimir/guardar el PDF sin importar los bloqueadores de pop-ups en PC o Celular
+  // Uso de un iframe invisible para forzar la ventana nativa de impresión/guardar PDF
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
   iframe.style.right = '0';
@@ -1775,7 +1796,7 @@ function exportPDF(grps, includeUngrouped) {
 }
 
 // ══════════════════════════════════════════════════
-//  IA — Gemini Flash (free, stable, no CORS issues)
+//  IA — GEMINI 1.5 FLASH (Completamente gratuita sin límites)
 // ══════════════════════════════════════════════════
 const GEMINI_KEY = 'AIzaSyAxvMO3k1W8VNE64bfiDo0kVMfMfXr_KrE';
 
@@ -1788,19 +1809,20 @@ async function aiAutofill() {
   errEl.style.display = 'none';
 
   if (!strainName) { errEl.textContent = '⚠ Ingresá el nombre.'; errEl.style.display = 'block'; return; }
-  if (GEMINI_KEY === 'TU_API_KEY_AQUI') { errEl.textContent = '⚠ Configurá tu API key de Gemini en el código.'; errEl.style.display = 'block'; return; }
 
   btn.disabled = true; btnTxt.innerHTML = '⏳ Buscando…';
 
-  const prompt = `Eres un experto en cannabis. Cepa: "${strainName}"${source?`. Fuente: "${source}"`:''}.
-Si no tenés información de algún campo, inferí desde los parentales. Nunca dejes un campo vacío.
-Respondé SOLO con JSON válido, sin markdown. Todo en español salvo nombres propios (cepa, parentales, breeder):
-{"nombre":"nombre exacto","sativa":50,"indica":50,"thc":"20%","floracion":"8-9 semanas","origen":"Parent A x Parent B","breeder":"nombre banco","aroma":"aromas principales","gusto":"sabor al fumar","efecto":"efectos principales","colorHoja":"color de hojas","perfil":"2-3 oraciones sobre crecimiento y características"}
-Si la cepa no existe devolvé {"error":"Cepa no encontrada"}.`;
+  // Usamos un prompt estricto que obliga a Gemini a responder en JSON puro sin fallar.
+  const prompt = `Actúa como un bot experto en cannabis. Tu única salida debe ser un objeto JSON válido, sin ningún texto adicional, ni bloques de código (sin \`\`\`json).
+Cepa: "${strainName}" ${source ? `Fuente: "${source}"` : ''}.
+Devuelve exactamente esta estructura (si no conoces algo, infiere de los parentales):
+{"nombre":"nombre exacto","sativa":50,"indica":50,"thc":"porcentaje","floracion":"tiempo en semanas","origen":"Parental A x Parental B","breeder":"banco","aroma":"aromas principales","gusto":"sabor principal","efecto":"efectos","colorHoja":"color","perfil":"descripción de 2 lineas"}
+Si la cepa no existe, devuelve {"error":"Cepa no encontrada"}.`;
 
   try {
+    // Cambiamos a la versión gemini-1.5-flash porque la versión 2.0 restringe la cuota en tu plan actual.
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1820,7 +1842,7 @@ Si la cepa no existe devolvé {"error":"Cepa no encontrada"}.`;
     const txt  = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     if (!txt) throw new Error('Sin respuesta. Intentá de nuevo.');
 
-    // Parse JSON — robust extraction
+    // Parseador ultra resistente contra formatos raros
     let parsed;
     try { parsed = JSON.parse(txt); }
     catch(e1) {
@@ -1845,9 +1867,11 @@ Si la cepa no existe devolvé {"error":"Cepa no encontrada"}.`;
     if (parsed.colorHoja) document.getElementById('mp-colorhoja').value = parsed.colorHoja;
     if (parsed.perfil)    document.getElementById('mp-perfil').value    = parsed.perfil;
 
-    const sativaVal = Math.min(100, Math.max(0, parseInt(parsed.sativa) || 50));
+    // Extraemos solo los números por si la IA devuelve un string tipo "60%"
+    const sativaStr = String(parsed.sativa || '50').replace(/\D/g, '');
+    const sativaVal = Math.min(100, Math.max(0, parseInt(sativaStr) || 50));
     document.getElementById('mp-sativa').value = sativaVal; updSativa();
-    showToast('✓ Datos cargados por Gemini');
+    showToast('✓ Datos cargados por IA');
 
   } catch(e) {
     errEl.textContent = '⚠ ' + (e.message || 'Error. Intentá de nuevo.');
@@ -1855,28 +1879,6 @@ Si la cepa no existe devolvé {"error":"Cepa no encontrada"}.`;
   } finally {
     btn.disabled = false; btnTxt.textContent = '✦ Buscar y cargar datos';
   }
-}
-
-
-function quickCreateGroup() {
-  // Save current plant modal state so we can return to it
-  closeModal('modal-plant');
-  // Open group modal in "new" mode
-  document.getElementById('mg-title').textContent = 'Nuevo grupo';
-  document.getElementById('mg-nombre').value = '';
-  document.getElementById('mg-desc').value = '';
-  document.getElementById('mg-color').value = '#7fb85a';
-  document.getElementById('mg-editing-id').value = '';
-  document.getElementById('mg-return-to-plant').value = '1'; // flag: return to plant modal
-  buildSwatches('mg-color-row','mg-color');
-  document.getElementById('modal-group').classList.add('open');
-  setTimeout(()=>document.getElementById('mg-nombre').focus(),200);
-}
-
-function goToDryingEntries() {
-  showTab('cosechar', document.querySelectorAll('.tab-btn')[1]);
-  setFilter('secando', document.querySelectorAll('.filter-btn')[1]);
-  setTimeout(() => { const el = document.getElementById('entries-container'); if(el) el.scrollIntoView({behavior:'smooth'}); }, 150);
 }
 
 // ══════════════════════════════════════════════════
@@ -1916,12 +1918,10 @@ async function handlePhotoUpload(files) {
       await dbRef(`photos/${currentUser}/${pid}/${key}`).set(b64);
     }
     await renderPhotoGallery(pid, 'mp-photo-gallery', true);
-    // Also refresh plant card if visible
     renderGroupsIndex();
     showToast('✓ Foto guardada');
   } catch(e) { showToast('⚠ Error al guardar foto: ' + e.message, true); }
   finally { document.getElementById('mp-photo-uploading').style.display = 'none'; }
-  // Reset inputs so same file can be re-selected
   document.getElementById('mp-photo-file').value = '';
   document.getElementById('mp-photo-camera').value = '';
 }
@@ -1933,7 +1933,7 @@ async function renderPhotoGallery(pid, containerId, editable) {
     const snap = await dbRef(`photos/${currentUser}/${pid}`).get();
     const photos = snap.exists() ? snap.val() : {};
     const keys = Object.keys(photos);
-    if (!keys.length) { container.innerHTML = editable ? '' : ''; return; }
+    if (!keys.length) { container.innerHTML = ''; return; }
     container.innerHTML = keys.map(k =>
       `<img class="photo-thumb" src="${photos[k]}" onclick="openLightbox('${pid}','${k}',\`${photos[k]}\`)" alt="foto"/>`
     ).join('');
@@ -1959,12 +1959,17 @@ async function deletePhoto(pid, key) {
     await dbRef(`photos/${currentUser}/${pid}/${key}`).remove();
     document.getElementById('photo-lightbox').classList.add('hidden');
     await renderPhotoGallery(pid, 'mp-photo-gallery', true);
-    // Refresh card
     const container = document.getElementById('plant-photos-' + pid.replace(/'/g,"\\'"));
     if (container) await renderPhotoGallery(pid, 'plant-photos-' + pid, false);
     renderGroupsIndex();
     showToast('Foto eliminada');
   } catch(e) { showToast('⚠ Error', true); }
+}
+
+function goToDryingEntries() {
+  showTab('cosechar', document.querySelectorAll('.tab-btn')[1]);
+  setFilter('secando', document.querySelectorAll('.filter-btn')[1]);
+  setTimeout(() => { const el = document.getElementById('entries-container'); if(el) el.scrollIntoView({behavior:'smooth'}); }, 150);
 }
 
 // ══════════════════════════════════════════════════
