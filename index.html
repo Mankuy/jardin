@@ -1788,38 +1788,16 @@ async function aiAutofill() {
   if (!strainName) { errEl.textContent = '⚠ Ingresá el nombre.'; errEl.style.display = 'block'; return; }
   btn.disabled = true; btnTxt.innerHTML = '⏳ Buscando…';
 
-  const prompt = `Eres un experto en cannabis. Cepa: "${strainName}"${source?`. Fuente: "${source}"`:''}. 
-
-IMPORTANTE: Si no tenés información específica de algún campo, analizá los parentales de la cepa para inferirlo. Nunca dejés un campo vacío o con "desconocido" — siempre usá el conocimiento de los parentales como respaldo.
-
-Respondé SOLO con JSON válido, sin markdown. Todo en español salvo nombres propios (nombre de cepa, parentales, breeder):
-{"nombre":"nombre exacto","sativa":50,"indica":50,"thc":"20%","floracion":"8-9 semanas","origen":"Parent A x Parent B","breeder":"nombre banco","aroma":"aromas principales","gusto":"descripción del sabor al fumar","efecto":"efectos principales al consumir","colorHoja":"color de hojas y cogollos","perfil":"2-3 oraciones sobre crecimiento y características"}
-Si la cepa definitivamente no existe devolvé {"error":"Cepa no encontrada"}`;
+  // Keep prompt SHORT — GET URL has length limits. POST gets blocked by CORS on GitHub Pages.
+  const shortPrompt = `Cannabis strain "${strainName}"${source?` from ${source}`:''} data in JSON (español except names): {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
 
   try {
-    let txt = '';
+    const url = 'https://text.pollinations.ai/' + encodeURIComponent(shortPrompt) + '?model=openai&json=true';
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Servicio no disponible (HTTP ' + res.status + ')');
+    const txt = await res.text();
 
-    // Primary: POST to Pollinations (no URL length limit)
-    try {
-      const res = await fetch('https://api.pollinations.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          model: 'openai',
-          messages: [{role: 'user', content: prompt}],
-          jsonMode: true
-        })
-      });
-      const j = await res.json();
-      txt = j.choices?.[0]?.message?.content || '';
-    } catch(e1) {
-      // Fallback: GET with shorter prompt
-      const shortPrompt = `Cannabis expert. Strain: "${strainName}"${source?` from "${source}"`:''}. Reply ONLY JSON: {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
-      const res2 = await fetch('https://text.pollinations.ai/' + encodeURIComponent(shortPrompt) + '?model=openai&json=true');
-      txt = await res2.text();
-    }
-
-    if (!txt || txt.trim() === '') throw new Error('La IA no devolvió contenido. Intentá de nuevo.');
+    if (!txt || txt.trim() === '') throw new Error('Sin respuesta. Intentá de nuevo.');
 
     // Parse JSON — try multiple strategies
     let parsed;
@@ -1828,7 +1806,7 @@ Si la cepa definitivamente no existe devolvé {"error":"Cepa no encontrada"}`;
       try { parsed = JSON.parse(txt.replace(/```json|```/g,'').trim()); }
       catch(e2) {
         const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
-        if (s === -1 || e === -1) throw new Error('Formato inválido de respuesta. Intentá de nuevo.');
+        if (s === -1 || e === -1) throw new Error('Respuesta inválida. Intentá de nuevo.');
         parsed = JSON.parse(txt.slice(s, e + 1));
       }
     }
