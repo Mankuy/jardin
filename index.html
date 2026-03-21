@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -7,7 +9,7 @@
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-<!-- CryptoJS para garantizar compatibilidad de encriptación de contraseñas (soluciona error en PC) -->
+<!-- CryptoJS para garantizar compatibilidad de encriptación de contraseñas -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <!-- Fuentes -->
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;1,6..72,300&display=swap" rel="stylesheet">
@@ -288,8 +290,6 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
 .photo-gallery{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;}
 .photo-thumb{width:64px;height:64px;border-radius:4px;object-fit:cover;cursor:pointer;border:1px solid var(--border);transition:border-color .2s,transform .15s;}
 .photo-thumb:hover{border-color:var(--accent);transform:scale(1.05);}
-.photo-add-btn{width:64px;height:64px;border-radius:4px;border:1px dashed var(--border);background:none;color:var(--text3);font-size:1.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .2s,color .2s;}
-.photo-add-btn:hover{border-color:var(--accent);color:var(--accent);}
 .photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;}
 .photo-lightbox.hidden{display:none;}
 .photo-lightbox img{max-width:95vw;max-height:90vh;border-radius:4px;object-fit:contain;}
@@ -439,7 +439,7 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
       </div>
       
       <div class="form-group">
-        <label>Peso fresco (opcional)</label>
+        <label>Peso fresco (g) <span style="text-transform:none;color:var(--text3)">(opcional)</span></label>
         <input type="number" id="input-peso-fresco" step="0.1" min="0" placeholder="— si lo pesás recién cortado —"/>
       </div>
       <div class="toggle-row">
@@ -514,6 +514,35 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
 </div>
 
 <!-- MODALS -->
+
+<!-- Modal: Editar Cosecha -->
+<div class="modal-overlay" id="modal-edit-entry">
+  <div class="modal" style="max-width:400px">
+    <h3>Editar cosecha</h3>
+    <div class="modal-sub">Corregí los datos de este registro.</div>
+    <input type="hidden" id="edit-entry-id"/>
+    <div class="form-group"><label>Fecha de corte</label><input type="date" id="edit-fecha"/></div>
+    <div class="form-group"><label>Planta</label><select id="edit-planta"></select></div>
+    <div class="form-group"><label>Peso fresco (g) <span style="text-transform:none;color:var(--text3)">(opcional)</span></label><input type="number" id="edit-peso-fresco" step="0.1" min="0"/></div>
+    <div class="form-group">
+      <label>Estado</label>
+      <select id="edit-estado" onchange="toggleEditSeco()">
+        <option value="secando">Secando</option>
+        <option value="seco">Seco</option>
+      </select>
+    </div>
+    <div id="edit-grupo-seco" style="display:none; margin-top:.6rem">
+      <div class="form-group"><label>Peso seco (g)</label><input type="number" id="edit-peso-seco" step="0.1" min="0"/></div>
+    </div>
+    <div class="form-group" style="margin-top:.6rem"><label>Nota</label><input type="text" id="edit-nota"/></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-edit-entry')">Cancelar</button>
+      <button class="btn-confirm" onclick="confirmEditEntry()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Actualizar Seco (Acción Rápida) -->
 <div class="modal-overlay" id="modal-seco">
   <div class="modal"><h3>Actualizar peso seco</h3>
     <div class="modal-sub">Fecha: <span class="mh" id="ms-fecha"></span> · <span class="mh" id="ms-planta"></span><br><span id="ms-fresco"></span></div>
@@ -549,7 +578,7 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
       <button type="button" onclick="aiAutofill()" id="ai-btn" style="width:100%;padding:.7rem;background:none;border:1px solid rgba(127,184,90,.4);color:var(--accent);font-family:'DM Mono',monospace;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.6rem;">
         <span id="ai-btn-text">✦ Buscar y cargar datos</span>
       </button>
-      <div id="ai-error" style="font-size:.7rem;color:var(--accent3);margin-top:.5rem;display:none"></div>
+      <div id="ai-error" style="font-size:.7rem;color:var(--accent3);margin-top:.5rem;display:none;line-height:1.5;"></div>
     </div>
 
     <div class="form-group"><label>Nombre *</label><input type="text" id="mp-nombre" oninput="this.dataset.manual='1'"/></div>
@@ -564,10 +593,26 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
     <div class="color-row" id="mp-color-row"></div>
     <input type="hidden" id="mp-color" value="#7fb85a"/>
     <div class="sect-div">Genética</div>
+    
     <div class="form-group">
-      <label>% Sativa — <span id="mp-sv">50</span>% · Indica <span id="mp-iv">50</span>%</label>
-      <div class="range-row"><span style="font-size:.65rem;color:#5abbc8">Sativa</span><input type="range" id="mp-sativa" min="0" max="100" value="50" oninput="updSativa()"/><span style="font-size:.65rem;color:#8a7eb8">Indica</span></div>
+      <label style="margin-bottom:.6rem">Proporción Sativa / Indica</label>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem;">
+        <div style="display:flex; align-items:center; gap:.4rem;">
+          <input type="number" id="mp-sativa-num" value="50" min="0" max="100" style="width:60px; padding:.4rem; text-align:center; background:var(--bg2); outline:none; border:1px solid var(--border); border-radius:3px; color:var(--text); font-family:'DM Mono',monospace;" oninput="document.getElementById('mp-sativa').value=this.value; updSativa();">
+          <span style="font-size:.65rem;color:#5abbc8;text-transform:uppercase;letter-spacing:.05em">% Sativa</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:.4rem;">
+          <span style="font-size:.65rem;color:#8a7eb8;text-transform:uppercase;letter-spacing:.05em">% Indica</span>
+          <input type="number" id="mp-indica-num" value="50" disabled style="width:60px; padding:.4rem; text-align:center; background:transparent; border:none; color:#8a7eb8; opacity:1; font-family:'DM Mono',monospace;">
+        </div>
+      </div>
+      <div class="range-row">
+        <span style="font-size:.8rem;color:#5abbc8">S</span>
+        <input type="range" id="mp-sativa" min="0" max="100" value="50" step="1" oninput="document.getElementById('mp-sativa-num').value=this.value; updSativa();"/>
+        <span style="font-size:.8rem;color:#8a7eb8">I</span>
+      </div>
     </div>
+
     <div class="sect-div">Info técnica</div>
     <div class="form-group"><label>THC aprox.</label><input type="text" id="mp-thc"/></div>
     <div class="form-group"><label>Floración</label><input type="text" id="mp-floracion"/></div>
@@ -585,11 +630,11 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
     <div style="display:flex;gap:.6rem;margin-top:.6rem;flex-wrap:wrap">
       <label style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem .9rem;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
         📁 Archivo
-        <input type="file" id="mp-photo-file" accept="image/*" multiple style="display:none" onchange="handlePhotoUpload(this.files, false)"/>
+        <input type="file" id="mp-photo-file" accept="image/*" multiple style="display:none" onchange="handlePhotoUpload(this.files)"/>
       </label>
       <label style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem .9rem;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
         📷 Cámara
-        <input type="file" id="mp-photo-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this.files, false)"/>
+        <input type="file" id="mp-photo-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this.files)"/>
       </label>
       <span id="mp-photo-uploading" style="font-size:.7rem;color:var(--accent2);align-self:center;display:none">⏳ Subiendo…</span>
     </div><button class="btn-cancel" onclick="closeModal('modal-plant')">Cancelar</button><button class="btn-confirm" onclick="confirmPlant()">Guardar</button></div>
@@ -1006,23 +1051,30 @@ function populatePlantGroupSel(selId,gid){
 }
 
 function toggleSecoInput(){document.getElementById('grupo-seco').style.display=document.getElementById('toggle-seco').checked?'block':'none';}
+
 function addEntry(){
   const fecha=document.getElementById('input-fecha').value,planta=document.getElementById('input-planta').value;
   const pesoFresco=parseFloat(document.getElementById('input-peso-fresco').value)||null;
   const hasSeco=document.getElementById('toggle-seco').checked;
   const pesoSeco=hasSeco?parseFloat(document.getElementById('input-peso-seco').value):null;
   const nota=document.getElementById('input-nota').value.trim();
+  
   if(!fecha||!planta){showToast('⚠ Completá fecha y planta.',true);return;}
   if(hasSeco&&(!pesoSeco||pesoSeco<=0)){showToast('⚠ Ingresá el peso seco.',true);return;}
   if(hasSeco&&pesoFresco&&pesoSeco>=pesoFresco){showToast('⚠ El peso seco debe ser menor al fresco.',true);return;}
+  
   entries.push({id:Date.now(),fecha,planta,pesoFresco,pesoSeco,estado:hasSeco?'seco':'secando',nota});
   entries.sort((a,b)=>a.fecha.localeCompare(b.fecha));
   scheduleSave();renderEntries();updateTotals();
-  document.getElementById('input-peso-fresco').value='';document.getElementById('input-peso-seco').value='';
-  document.getElementById('input-nota').value='';document.getElementById('toggle-seco').checked=false;
+  
+  document.getElementById('input-peso-fresco').value='';
+  document.getElementById('input-peso-seco').value='';
+  document.getElementById('input-nota').value='';
+  document.getElementById('toggle-seco').checked=false;
   document.getElementById('grupo-seco').style.display='none';
   showToast(hasSeco?`✓ ${pesoSeco}g secos de ${planta}`:`✓ ${planta} en secado`);
 }
+
 function setFilter(f,btn){activeFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderEntries();}
 
 function renderEntries(){
@@ -1052,10 +1104,11 @@ function renderEntries(){
       const fwDiv=e.pesoFresco?`${cfmt(e.pesoFresco)}g`:'—';
       wH=`<div><span class="w-drying">${fw}</span><div class="w-sub">seco: pendiente</div></div>`;
       wDiv=`<div><span class="w-drying">${fwDiv}</span></div>`;
-      aH=`<div class="action-cell"><button class="btn-update" onclick="openSecoModal(${e.id})">⏳ Peso seco</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
+      aH=`<div class="action-cell"><button class="btn-update" onclick="openSecoModal(${e.id})">⏳ Seco</button><button class="btn-outline" style="padding:.4rem .6rem" onclick="openEditEntryModal(${e.id})">✎</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕</button></div>`;
       cardWeight=`<span class="w-drying">${fw}</span>${cdiv>1?`<span style="font-size:.75rem;color:var(--text3);margin-left:.5rem">/ ${fwDiv}</span>`:''}<div class="w-sub" style="font-size:.65rem;color:var(--text3)">seco: pendiente</div>`;
       cardActions=`
         <button onclick="openSecoModal(${e.id})" style="background:rgba(200,168,75,.12);border:1px solid rgba(200,168,75,.3);color:var(--accent2);">⏳ Peso seco</button>
+        <button onclick="openEditEntryModal(${e.id})" style="background:none;border:1px solid var(--border);color:var(--text2);flex:0;padding:.55rem .8rem;">✎</button>
         <button onclick="deleteEntry(${e.id})" style="background:none;border:1px solid var(--border);color:var(--accent3);flex:0;padding:.55rem .8rem;">✕</button>`;
     }else{
       sH=`<span class="status-badge seco">✓ seco</span>`;
@@ -1064,8 +1117,8 @@ function renderEntries(){
       wH=`<div><span class="w-dry">${e.pesoSeco.toFixed(1)} g</span>${(fw||ratio)?`<div class="w-sub">${fw}${ratio}</div>`:''}</div>`;
       wDiv=`<div><span class="w-dry">${cfmt(e.pesoSeco)} g</span></div>`;
       cardWeight=`<span class="w-dry" style="font-size:.9rem;font-weight:500">${e.pesoSeco.toFixed(1)} g seco</span>${cdiv>1?`<span style="font-size:.75rem;color:var(--text3);margin-left:.5rem">/ ${cfmt(e.pesoSeco)} g</span>`:''} ${fw?`<div class="w-sub" style="font-size:.65rem;color:var(--text3)">${fw}${ratio}</div>`:''}`;
-      cardActions=`<button onclick="deleteEntry(${e.id})" style="background:none;border:1px solid var(--border);color:var(--accent3);">✕ Eliminar entrada</button>`;
-      aH=`<div class="action-cell"><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
+      cardActions=`<button onclick="openEditEntryModal(${e.id})" style="background:none;border:1px solid var(--border);color:var(--text2);">✎ Editar</button><button onclick="deleteEntry(${e.id})" style="background:none;border:1px solid var(--border);color:var(--accent3);">✕ Eliminar</button>`;
+      aH=`<div class="action-cell"><button class="btn-outline" style="padding:.4rem .6rem" onclick="openEditEntryModal(${e.id})">✎ Editar</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
     }
     const tableRow=`<tr><td>${d}</td><td><span class="plant-badge"><span class="plant-badge-dot" style="background:${p.color}"></span>${e.planta}</span></td><td>${wH}</td>${cdiv>1?`<td>${wDiv}</td>`:''}<td>${sH}</td><td style="font-size:.68rem;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.nota||''}">${e.nota||'—'}</td><td>${aH}</td></tr>`;
     const card=`<div class="entry-card">
@@ -1086,6 +1139,71 @@ function renderEntries(){
   `<div class="entry-cards">${rows.map(r=>r.card).join('')}</div>`;
 }
 
+function openEditEntryModal(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  document.getElementById('edit-entry-id').value = id;
+  document.getElementById('edit-fecha').value = e.fecha;
+  
+  const sel = document.getElementById('edit-planta');
+  sel.innerHTML = '';
+  plants.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.nombre; o.textContent = p.nombre;
+    sel.appendChild(o);
+  });
+  
+  if(!plants.find(p=>p.nombre===e.planta)){
+    const o = document.createElement('option');
+    o.value = e.planta; o.textContent = e.planta + " (Eliminada)";
+    sel.appendChild(o);
+  }
+  sel.value = e.planta;
+  
+  document.getElementById('edit-peso-fresco').value = e.pesoFresco || '';
+  document.getElementById('edit-estado').value = e.estado;
+  document.getElementById('edit-peso-seco').value = e.pesoSeco || '';
+  document.getElementById('edit-nota').value = e.nota || '';
+  
+  toggleEditSeco();
+  document.getElementById('modal-edit-entry').classList.add('open');
+}
+
+function toggleEditSeco() {
+  document.getElementById('edit-grupo-seco').style.display = document.getElementById('edit-estado').value === 'seco' ? 'block' : 'none';
+}
+
+function confirmEditEntry() {
+  const id = parseInt(document.getElementById('edit-entry-id').value);
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  
+  const fecha = document.getElementById('edit-fecha').value;
+  const planta = document.getElementById('edit-planta').value;
+  const pf = parseFloat(document.getElementById('edit-peso-fresco').value) || null;
+  const estado = document.getElementById('edit-estado').value;
+  const ps = estado === 'seco' ? (parseFloat(document.getElementById('edit-peso-seco').value) || null) : null;
+  const nota = document.getElementById('edit-nota').value.trim();
+  
+  if (!fecha || !planta) { showToast('⚠ Fecha y planta son obligatorios.', true); return; }
+  if (estado === 'seco' && (!ps || ps <= 0)) { showToast('⚠ Ingresá el peso seco.', true); return; }
+  if (estado === 'seco' && pf && ps >= pf) { showToast('⚠ El peso seco debe ser menor al fresco.', true); return; }
+  
+  e.fecha = fecha;
+  e.planta = planta;
+  e.pesoFresco = pf;
+  e.estado = estado;
+  e.pesoSeco = ps;
+  e.nota = nota;
+  
+  entries.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  scheduleSave();
+  closeModal('modal-edit-entry');
+  renderEntries();
+  updateTotals();
+  showToast('✓ Cosecha actualizada');
+}
+
 function deleteEntry(id){
   const entry = entries.find(e=>e.id===id);
   if(!entry) return;
@@ -1093,6 +1211,7 @@ function deleteEntry(id){
   moveToTrash('entry', entry, `Cosecha de ${entry.planta}`);
   renderEntries(); updateTotals();
 }
+
 function updateTotals(){
   const dry=entries.filter(e=>e.estado==='seco').reduce((s,e)=>s+(e.pesoSeco||0),0);
   const drying=entries.filter(e=>e.estado==='secando').reduce((s,e)=>s+(e.pesoFresco||0),0);
@@ -1113,7 +1232,13 @@ function openSecoModal(id){
 function confirmUpdateSeco(){
   const val=parseFloat(document.getElementById('ms-peso').value);
   if(!val||val<=0){showToast('⚠ Ingresá un peso válido.',true);return;}
+  
   const e=entries.find(x=>x.id===editingEntryId);if(!e)return;
+  
+  if(e.pesoFresco && val >= e.pesoFresco) {
+     showToast('⚠ El peso seco debe ser menor al fresco.',true);return;
+  }
+  
   e.pesoSeco=val;e.estado='seco';
   scheduleSave();closeModal('modal-seco');renderEntries();updateTotals();
   showToast(`✓ ${val}g secos de ${e.planta}`);
@@ -1325,7 +1450,15 @@ function deleteGroup(gid){
   });
 }
 
-function updSativa(){const v=document.getElementById('mp-sativa').value;document.getElementById('mp-sv').textContent=v;document.getElementById('mp-iv').textContent=100-v;}
+function updSativa(){
+  let val = parseInt(document.getElementById('mp-sativa').value);
+  if(isNaN(val)) val = 0;
+  if(val>100) val=100;
+  if(val<0) val=0;
+  document.getElementById('mp-sativa').value = val;
+  document.getElementById('mp-sativa-num').value = val;
+  document.getElementById('mp-indica-num').value = 100 - val;
+}
 
 function openPlantModal(pid,presetGid){
   const p=pid?plants.find(x=>x.id===pid):null;
@@ -1333,7 +1466,10 @@ function openPlantModal(pid,presetGid){
   document.getElementById('mp-editing-id').value=p?p.id:'';
   document.getElementById('mp-nombre').value=p?p.nombre:'';
   document.getElementById('mp-color').value=p?p.color:'#7fb85a';
+  
   document.getElementById('mp-sativa').value=p?p.sativa:50;
+  document.getElementById('mp-sativa-num').value=p?p.sativa:50;
+  
   document.getElementById('mp-thc').value=p?(p.thc||''):'';
   document.getElementById('mp-floracion').value=p?(p.floracion||''):'';
   document.getElementById('mp-origen').value=p?(p.origen||''):'';
@@ -1772,7 +1908,6 @@ function exportPDF(grps, includeUngrouped) {
   <div class="footer">Generado por Jardín · Registro de cosecha · ${date}</div>
   </body></html>`;
 
-  // Uso de un iframe invisible para forzar la ventana nativa de impresión/guardar PDF
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
   iframe.style.right = '0';
@@ -1796,7 +1931,7 @@ function exportPDF(grps, includeUngrouped) {
 }
 
 // ══════════════════════════════════════════════════
-//  IA — GEMINI 1.5 FLASH (Completamente gratuita sin límites)
+//  IA — GEMINI AUTOFILL (Robusto, Seguro, Multi-Modelo)
 // ══════════════════════════════════════════════════
 const GEMINI_KEY = 'AIzaSyAxvMO3k1W8VNE64bfiDo0kVMfMfXr_KrE';
 
@@ -1808,48 +1943,71 @@ async function aiAutofill() {
   const btnTxt     = document.getElementById('ai-btn-text');
   errEl.style.display = 'none';
 
-  if (!strainName) { errEl.textContent = '⚠ Ingresá el nombre.'; errEl.style.display = 'block'; return; }
+  if (!strainName) { errEl.textContent = '⚠ Ingresá el nombre de la cepa.'; errEl.style.display = 'block'; return; }
 
   btn.disabled = true; btnTxt.innerHTML = '⏳ Buscando…';
 
-  // Usamos un prompt estricto que obliga a Gemini a responder en JSON puro sin fallar.
-  const prompt = `Actúa como un bot experto en cannabis. Tu única salida debe ser un objeto JSON válido, sin ningún texto adicional, ni bloques de código (sin \`\`\`json).
+  const prompt = `Actúa como un bot experto en cannabis. Tu única salida debe ser un objeto JSON válido, sin ningún texto adicional, ni bloques de código.
 Cepa: "${strainName}" ${source ? `Fuente: "${source}"` : ''}.
 Devuelve exactamente esta estructura (si no conoces algo, infiere de los parentales):
 {"nombre":"nombre exacto","sativa":50,"indica":50,"thc":"porcentaje","floracion":"tiempo en semanas","origen":"Parental A x Parental B","breeder":"banco","aroma":"aromas principales","gusto":"sabor principal","efecto":"efectos","colorHoja":"color","perfil":"descripción de 2 lineas"}
-Si la cepa no existe, devuelve {"error":"Cepa no encontrada"}.`;
+Si la cepa no existe o no tiene sentido, devuelve {"error":"Cepa no encontrada"}.`;
+
+  const modelsToTry =[
+    'gemini-1.5-flash', 
+    'gemini-1.5-flash-latest', 
+    'gemini-pro', 
+    'gemini-1.0-pro'
+  ];
+  
+  let responseData = null;
+  let lastError = '';
 
   try {
-    // Cambiamos a la versión gemini-1.5-flash porque la versión 2.0 restringe la cuota en tu plan actual.
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
-        })
-      }
-    );
+    for (const model of modelsToTry) {
+        try {
+            const res = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents:[{ parts: [{ text: prompt }] }],
+                  generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
+                })
+              }
+            );
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error?.message || `HTTP ${res.status}`);
+            const data = await res.json();
+
+            if (!res.ok) {
+              lastError = data.error?.message || `HTTP ${res.status}`;
+              if(lastError.includes('Quota') || lastError.includes('limit: 0')) {
+                  throw new Error("Tu API Key no tiene cupo gratuito habilitado (Quota Limit). Revisa tu cuenta de Google Cloud.");
+              }
+              continue; 
+            }
+
+            responseData = data;
+            break; 
+        } catch(loopErr) {
+            lastError = loopErr.message;
+            if(lastError.includes('cupo gratuito')) throw loopErr;
+        }
     }
 
-    const data = await res.json();
-    const txt  = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if (!txt) throw new Error('Sin respuesta. Intentá de nuevo.');
+    if (!responseData) throw new Error(lastError || "No se pudo conectar con la IA de Google Gemini.");
 
-    // Parseador ultra resistente contra formatos raros
+    const txt = responseData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!txt) throw new Error('La IA no devolvió ninguna respuesta. Intentá de nuevo.');
+
     let parsed;
     try { parsed = JSON.parse(txt); }
     catch(e1) {
       try { parsed = JSON.parse(txt.replace(/```json|```/g,'').trim()); }
       catch(e2) {
         const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
-        if (s === -1) throw new Error('Respuesta inválida. Intentá de nuevo.');
+        if (s === -1) throw new Error('Respuesta inválida de la IA. Intentá nuevamente.');
         parsed = JSON.parse(txt.slice(s, e+1));
       }
     }
@@ -1867,14 +2025,15 @@ Si la cepa no existe, devuelve {"error":"Cepa no encontrada"}.`;
     if (parsed.colorHoja) document.getElementById('mp-colorhoja').value = parsed.colorHoja;
     if (parsed.perfil)    document.getElementById('mp-perfil').value    = parsed.perfil;
 
-    // Extraemos solo los números por si la IA devuelve un string tipo "60%"
     const sativaStr = String(parsed.sativa || '50').replace(/\D/g, '');
     const sativaVal = Math.min(100, Math.max(0, parseInt(sativaStr) || 50));
-    document.getElementById('mp-sativa').value = sativaVal; updSativa();
-    showToast('✓ Datos cargados por IA');
+    document.getElementById('mp-sativa').value = sativaVal; 
+    updSativa();
+    
+    showToast('✓ Datos de la cepa cargados');
 
   } catch(e) {
-    errEl.textContent = '⚠ ' + (e.message || 'Error. Intentá de nuevo.');
+    errEl.textContent = '⚠ ' + e.message;
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false; btnTxt.textContent = '✦ Buscar y cargar datos';
