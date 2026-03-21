@@ -1797,42 +1797,39 @@ Respondé SOLO con JSON válido, sin markdown. Todo en español salvo nombres pr
 Si la cepa definitivamente no existe devolvé {"error":"Cepa no encontrada"}`;
 
   try {
-    const seed = Math.floor(Math.random() * 9999);
-    const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt) + '?model=openai&json=true&seed=' + seed;
-    
-    let txt;
+    let txt = '';
+
+    // Primary: POST to Pollinations (no URL length limit)
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      txt = await res.text();
-    } catch(fetchErr) {
-      // Fallback: POST endpoint
-      const res2 = await fetch('https://api.pollinations.ai/v1/chat/completions', {
+      const res = await fetch('https://api.pollinations.ai/v1/chat/completions', {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           model: 'openai',
-          messages: [{role:'user', content: prompt}]
+          messages: [{role: 'user', content: prompt}],
+          jsonMode: true
         })
       });
-      const j = await res2.json();
+      const j = await res.json();
       txt = j.choices?.[0]?.message?.content || '';
+    } catch(e1) {
+      // Fallback: GET with shorter prompt
+      const shortPrompt = `Cannabis expert. Strain: "${strainName}"${source?` from "${source}"`:''}. Reply ONLY JSON: {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
+      const res2 = await fetch('https://text.pollinations.ai/' + encodeURIComponent(shortPrompt) + '?model=openai&json=true');
+      txt = await res2.text();
     }
 
-    if (!txt || txt.trim() === '') throw new Error('La IA no devolvió contenido.');
+    if (!txt || txt.trim() === '') throw new Error('La IA no devolvió contenido. Intentá de nuevo.');
 
-    // Try multiple parsing strategies
+    // Parse JSON — try multiple strategies
     let parsed;
-    try {
-      parsed = JSON.parse(txt);
-    } catch(e1) {
-      try {
-        parsed = JSON.parse(txt.replace(/```json|```/g,'').trim());
-      } catch(e2) {
-        const start = txt.indexOf('{');
-        const end   = txt.lastIndexOf('}');
-        if (start === -1 || end === -1) throw new Error('Respuesta inesperada de la IA. Intentá de nuevo.');
-        parsed = JSON.parse(txt.slice(start, end + 1));
+    try { parsed = JSON.parse(txt); }
+    catch(e1) {
+      try { parsed = JSON.parse(txt.replace(/```json|```/g,'').trim()); }
+      catch(e2) {
+        const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
+        if (s === -1 || e === -1) throw new Error('Formato inválido de respuesta. Intentá de nuevo.');
+        parsed = JSON.parse(txt.slice(s, e + 1));
       }
     }
 
