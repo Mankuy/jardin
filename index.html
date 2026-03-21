@@ -1792,23 +1792,43 @@ async function aiAutofill() {
   const shortPrompt = `Cannabis strain "${strainName}"${source?` from ${source}`:''} data in JSON (español except names): {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
 
   try {
-    const url = 'https://text.pollinations.ai/' + encodeURIComponent(shortPrompt) + '?model=openai&json=true';
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Servicio no disponible (HTTP ' + res.status + ')');
-    const txt = await res.text();
+    // Use Anthropic API — works from any origin without CORS issues
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': '',
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        messages: [{
+          role: 'user',
+          content: `Eres experto en cannabis. Cepa: "${strainName}"${source?`. Fuente: "${source}"`:''}.
+Si no tenés info de un campo, inferí desde los parentales.
+Respondé SOLO JSON válido sin markdown, todo en español salvo nombres propios:
+{"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`
+        }]
+      })
+    });
 
-    if (!txt || txt.trim() === '') throw new Error('Sin respuesta. Intentá de nuevo.');
-
-    // Parse JSON — try multiple strategies
-    let parsed;
-    try { parsed = JSON.parse(txt); }
-    catch(e1) {
-      try { parsed = JSON.parse(txt.replace(/```json|```/g,'').trim()); }
-      catch(e2) {
-        const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
-        if (s === -1 || e === -1) throw new Error('Respuesta inválida. Intentá de nuevo.');
-        parsed = JSON.parse(txt.slice(s, e + 1));
-      }
+    if (!res.ok) {
+      // Fallback to Pollinations GET if Anthropic fails
+      const fallbackPrompt = `Cannabis strain "${strainName}"${source?` source ${source}`:''} reply ONLY JSON no markdown: {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
+      const res2 = await fetch('https://text.pollinations.ai/' + encodeURIComponent(fallbackPrompt) + '?model=openai&json=true');
+      if (!res2.ok) throw new Error('Servicio IA no disponible. Intentá más tarde.');
+      const txt2 = await res2.text();
+      const s2 = txt2.indexOf('{'), e2 = txt2.lastIndexOf('}');
+      if (s2 === -1) throw new Error('Sin respuesta de la IA.');
+      var parsed = JSON.parse(txt2.slice(s2, e2+1));
+    } else {
+      const data = await res.json();
+      const txt = data.content?.[0]?.text || '';
+      const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
+      if (s === -1) throw new Error('Sin respuesta de la IA.');
+      var parsed = JSON.parse(txt.slice(s, e+1));
     }
 
     if (parsed.error) throw new Error('Cepa no encontrada. Verificá el nombre e intentá de nuevo.');
