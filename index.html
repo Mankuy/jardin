@@ -4,8 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Jardín — Registro de Cosecha</title>
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<!-- CryptoJS para garantizar compatibilidad de encriptación de contraseñas (soluciona error en PC) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<!-- Fuentes -->
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;1,6..72,300&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0f130e;--bg2:#161c14;--bg3:#1e2819;--card:#1a2116;--border:#2d3d27;--accent:#7fb85a;--accent2:#c8a84b;--accent3:#e07a5f;--text:#d4dcc8;--text2:#8fa07e;--text3:#5a6b50;--white:#f0f4eb;--rebel:#5abbc8;}
@@ -525,7 +529,7 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
       <div style="font-size:.72rem;color:var(--text2);margin-bottom:.8rem;line-height:1.6">Ingresá el nombre de la cepa y opcionalmente la fuente. La IA buscará los datos.</div>
       <div class="form-group" style="margin-bottom:.7rem"><label>Nombre de la cepa</label><input type="text" id="ai-strain-name" placeholder="ej: Wedding Cake"/></div>
       <div class="form-group" style="margin-bottom:.8rem"><label>Fuente (opcional)</label><input type="text" id="ai-strain-source" placeholder="ej: banco, breeder..."/></div>
-      <button onclick="aiAutofill()" id="ai-btn" style="width:100%;padding:.7rem;background:none;border:1px solid rgba(127,184,90,.4);color:var(--accent);font-family:'DM Mono',monospace;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.6rem;">
+      <button type="button" onclick="aiAutofill()" id="ai-btn" style="width:100%;padding:.7rem;background:none;border:1px solid rgba(127,184,90,.4);color:var(--accent);font-family:'DM Mono',monospace;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.6rem;">
         <span id="ai-btn-text">✦ Buscar y cargar datos</span>
       </button>
       <div id="ai-error" style="font-size:.7rem;color:var(--accent3);margin-top:.5rem;display:none"></div>
@@ -546,8 +550,7 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
     <div class="form-group"><label>Floración</label><input type="text" id="mp-floracion"/></div>
     <div class="form-group"><label>Cruzamiento / Origen</label><input type="text" id="mp-origen"/></div>
     <div class="form-group"><label>Breeder / Obtentor</label><input type="text" id="mp-breeder"/></div>
-    <div class="form-group"><label>Aroma</label><input type="text" id="mp-aroma"/></div>
-    <div class="form-group"><label>Olor</label><input type="text" id="mp-olor"/></div>
+    <div class="form-group"><label>Aroma / Olor</label><input type="text" id="mp-aroma"/></div>
     <div class="form-group"><label>Gusto / Sabor</label><input type="text" id="mp-gusto"/></div>
     <div class="form-group"><label>Efecto</label><input type="text" id="mp-efecto"/></div>
     <div class="form-group"><label>Color de hoja</label><input type="text" id="mp-colorhoja"/></div>
@@ -621,7 +624,7 @@ let currentUser=null, groups=[], plants=[], entries=[], trash=[];
 let activeFilter='all', editingEntryId=null, saveTimer=null;
 
 const openAccs = new Set(['res-totales']); 
-const collapsedPlants = new Set(); // Global state for tracking collapsed plants
+const collapsedPlants = new Set(); 
 
 function toggleAcc(id, headerEl) {
   if (openAccs.has(id)) openAccs.delete(id);
@@ -639,19 +642,16 @@ function toggleAcc(id, headerEl) {
   }
 }
 
-// Expande / Contrae la información de las plantas
 function togglePlant(id) {
   const extra = document.getElementById('plant-extra-' + id);
   const icon = document.getElementById('plant-icon-' + id);
   if (!extra) return;
 
   if (collapsedPlants.has(id)) {
-    // Si estaba colapsada, la mostramos (expandida)
     collapsedPlants.delete(id);
     extra.style.display = 'block';
     if (icon) icon.style.transform = 'rotate(0deg)';
   } else {
-    // Si estaba expandida, la ocultamos (colapsada)
     collapsedPlants.add(id);
     extra.style.display = 'none';
     if (icon) icon.style.transform = 'rotate(180deg)';
@@ -661,7 +661,13 @@ function togglePlant(id) {
 // ══════════════════════════════════════════════════
 //  AUTH
 // ══════════════════════════════════════════════════
-async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
+async function sha256(s){
+  if (typeof CryptoJS !== 'undefined') {
+    return CryptoJS.SHA256(s).toString();
+  }
+  const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+}
 
 function switchAuthTab(tab,btn){
   document.querySelectorAll('.auth-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
@@ -677,46 +683,65 @@ function setBtnLoading(btnId,txtId,loading,txt){
 }
 
 async function doLogin(){
-  const username=document.getElementById('login-user').value.trim().toLowerCase();
-  const password=document.getElementById('login-pass').value;
-  const errEl=document.getElementById('login-error'); errEl.textContent='';
-  if(!username||!password){errEl.textContent='Completá usuario y contraseña.';return;}
-  setBtnLoading('login-btn','login-btn-text',true,'Ingresando…');
-  try{
+  try {
+    const username=document.getElementById('login-user').value.trim().toLowerCase();
+    const password=document.getElementById('login-pass').value;
+    const errEl=document.getElementById('login-error'); errEl.textContent='';
+    
+    if(!username||!password){errEl.textContent='Completá usuario y contraseña.';return;}
+    
+    setBtnLoading('login-btn','login-btn-text',true,'Ingresando…');
+    
     const hash=await sha256(password+username);
     const stored=await dbGet(`users/${username}/hash`);
-    if(!stored||stored!==hash){errEl.textContent='Usuario o contraseña incorrectos.';return;}
+    
+    if(!stored||stored!==hash){
+        errEl.textContent='Usuario o contraseña incorrectos.';
+        setBtnLoading('login-btn','login-btn-text',false,'Ingresar →');
+        return;
+    }
+    
     const data=await dbGet(`users/${username}/data`)||{groups:[],plants:[],entries:[],trash:[]};
     localStorage.setItem('jd_session',username);
     bootApp(username,data);
-  }catch(e){
-    errEl.textContent='Error de conexión: '+e.message;
-  }finally{
+  } catch(e) {
+    document.getElementById('login-error').textContent='Error de conexión: '+e.message;
+  } finally {
     setBtnLoading('login-btn','login-btn-text',false,'Ingresar →');
   }
 }
 
 async function doRegister(){
-  const username=document.getElementById('reg-user').value.trim().toLowerCase();
-  const password=document.getElementById('reg-pass').value;
-  const pass2=document.getElementById('reg-pass2').value;
-  const errEl=document.getElementById('reg-error');errEl.textContent='';
-  if(!username||!password){errEl.textContent='Completá todos los campos.';return;}
-  if(username.length<3){errEl.textContent='Usuario: mínimo 3 caracteres.';return;}
-  if(password.length<6){errEl.textContent='Contraseña: mínimo 6 caracteres.';return;}
-  if(password!==pass2){errEl.textContent='Las contraseñas no coinciden.';return;}
-  setBtnLoading('reg-btn','reg-btn-text',true,'Creando…');
-  try{
+  try {
+    const username=document.getElementById('reg-user').value.trim().toLowerCase();
+    const password=document.getElementById('reg-pass').value;
+    const pass2=document.getElementById('reg-pass2').value;
+    const errEl=document.getElementById('reg-error');errEl.textContent='';
+    
+    if(!username||!password){errEl.textContent='Completá todos los campos.';return;}
+    if(username.length<3){errEl.textContent='Usuario: mínimo 3 caracteres.';return;}
+    if(password.length<6){errEl.textContent='Contraseña: mínimo 6 caracteres.';return;}
+    if(password!==pass2){errEl.textContent='Las contraseñas no coinciden.';return;}
+    
+    setBtnLoading('reg-btn','reg-btn-text',true,'Creando…');
+    
     const existing=await dbGet(`users/${username}/hash`);
-    if(existing){errEl.textContent='Ese usuario ya existe.';return;}
+    if(existing){
+        errEl.textContent='Ese usuario ya existe.';
+        setBtnLoading('reg-btn','reg-btn-text',false,'Crear cuenta →');
+        return;
+    }
+    
     const hash=await sha256(password+username);
     const initData={groups:[],plants:[],entries:[],trash:[]};
     await dbSet(`users/${username}/hash`,hash);
     await dbSet(`users/${username}/data`,initData);
-    localStorage.setItem('jd_session',username);bootApp(username,initData);
-  }catch(e){
-    errEl.textContent='Error de conexión: '+e.message;
-  }finally{
+    
+    localStorage.setItem('jd_session',username);
+    bootApp(username,initData);
+  } catch(e) {
+    document.getElementById('reg-error').textContent='Error de conexión: '+e.message;
+  } finally {
     setBtnLoading('reg-btn','reg-btn-text',false,'Crear cuenta →');
   }
 }
@@ -1124,14 +1149,17 @@ function plantCardHTML(p, totals) {
   const eid = p.id.replace(/'/g, "\\'");
   const isCollapsed = collapsedPlants.has(eid);
 
-  // Determinar si hay información extra para habilitar el botón de replegar
+  let displayAroma = p.aroma || '—';
+  if (p.olor && p.olor !== '—' && p.aroma !== p.olor) {
+       displayAroma = p.aroma !== '—' ? p.aroma + ' · ' + p.olor : p.olor;
+  }
+
   const hasBreeder = p.breeder && p.breeder !== '—';
-  const hasOlor = p.olor && p.olor !== '—';
   const hasGusto = p.gusto && p.gusto !== '—';
   const hasEfecto = p.efecto && p.efecto !== '—';
   const hasColorHoja = p.colorHoja && p.colorHoja !== '—';
   const hasPerfil = p.perfil && p.perfil !== '—' && p.perfil.trim() !== '';
-  const hasExtra = hasBreeder || hasOlor || hasGusto || hasEfecto || hasColorHoja || hasPerfil;
+  const hasExtra = hasBreeder || hasGusto || hasEfecto || hasColorHoja || hasPerfil;
 
   return `<div class="plant-card" id="plant-card-${eid}">
     <!-- HEADER CLICKABLE -->
@@ -1146,19 +1174,18 @@ function plantCardHTML(p, totals) {
     </div>
     
     <div class="plant-info">
-      <!-- BASIC INFO (Siempre visible) -->
+      <!-- BASIC INFO -->
       <div class="sativa-indica-bar"><div class="si-sativa" style="width:${p.sativa}%"></div><div class="si-indica" style="width:${p.indica}%"></div></div>
       <div class="si-label"><span style="color:#5abbc8">Sativa ${p.sativa}%</span><span style="color:#8a7eb8">Indica ${p.indica}%</span></div>
       <div class="plant-info-row" style="margin-top:.55rem"><span class="key">THC</span><span class="val">${p.thc}${p.cbd && p.cbd !== '—' ? ' · CBD ' + p.cbd : ''}</span></div>
       <div class="plant-info-row"><span class="key">Floración</span><span class="val">${p.floracion}</span></div>
-      <div class="plant-info-row"><span class="key">Aroma</span><span class="val">${p.aroma}</span></div>
+      <div class="plant-info-row"><span class="key">Aroma/Olor</span><span class="val">${displayAroma}</span></div>
       <div class="plant-info-row"><span class="key">Cruzamiento</span><span class="val">${p.origen}</span></div>
 
-      <!-- EXTRA INFO (Se oculta/muestra según el estado) -->
+      <!-- EXTRA INFO -->
       ${hasExtra ? `
       <div id="plant-extra-${eid}" style="display:${isCollapsed ? 'none' : 'block'}; margin-top:.4rem;">
         ${hasBreeder ? `<div class="plant-info-row"><span class="key">Breeder</span><span class="val">${p.breeder}</span></div>` : ''}
-        ${hasOlor ? `<div class="plant-info-row"><span class="key">Olor</span><span class="val">${p.olor}</span></div>` : ''}
         ${hasGusto ? `<div class="plant-info-row"><span class="key">Gusto</span><span class="val">${p.gusto}</span></div>` : ''}
         ${hasEfecto ? `<div class="plant-info-row"><span class="key">Efecto</span><span class="val">${p.efecto}</span></div>` : ''}
         ${hasColorHoja ? `<div class="plant-info-row"><span class="key">Color hoja</span><span class="val">${p.colorHoja}</span></div>` : ''}
@@ -1206,7 +1233,6 @@ function confirmGroup(){
   
   scheduleSave();closeModal('modal-group');populateGroupSelect('input-grupo',true);filterPlantsByGroup();
   
-  // Auto-select in form if we are in Cosechar tab
   if(!eid && document.getElementById('tab-cosechar').classList.contains('active')) {
     document.getElementById('input-grupo').value = newId;
     filterPlantsByGroup();
@@ -1227,6 +1253,7 @@ function deleteGroup(gid){
 }
 
 function updSativa(){const v=document.getElementById('mp-sativa').value;document.getElementById('mp-sv').textContent=v;document.getElementById('mp-iv').textContent=100-v;}
+
 function openPlantModal(pid,presetGid){
   const p=pid?plants.find(x=>x.id===pid):null;
   document.getElementById('mp-title').textContent=p?'Editar planta':'Nueva planta';
@@ -1238,39 +1265,63 @@ function openPlantModal(pid,presetGid){
   document.getElementById('mp-floracion').value=p?(p.floracion||''):'';
   document.getElementById('mp-origen').value=p?(p.origen||''):'';
   document.getElementById('mp-breeder').value=p?(p.breeder||''):'';
-  document.getElementById('mp-aroma').value=p?(p.aroma||''):'';
-  document.getElementById('mp-olor').value=p?(p.olor||''):'';
+  
+  let combinedAroma = p ? p.aroma : '';
+  if (p && p.olor && p.olor !== '—') {
+      if (combinedAroma && combinedAroma !== '—' && combinedAroma !== p.olor) {
+          combinedAroma += ' · ' + p.olor;
+      } else {
+          combinedAroma = p.olor;
+      }
+  }
+  document.getElementById('mp-aroma').value = combinedAroma !== '—' ? (combinedAroma || '') : '';
+  
   document.getElementById('mp-gusto').value=p?(p.gusto||''):'';
   document.getElementById('mp-efecto').value=p?(p.efecto||''):'';
-  document.getElementById('mp-colorhoja').value=p?(p.colorHoja||''):'';
+  document.getElementById('mp-colorhoja').value=p?(p.colorhoja||p.colorHoja||''):'';
   document.getElementById('mp-perfil').value=p?(p.perfil||''):'';
+  
   updSativa();
   const gid=p?p.grupoId:(presetGid&&presetGid!=='__ungrouped__'?presetGid:null);
   populatePlantGroupSel('mp-grupo',gid);buildSwatches('mp-color-row','mp-color');
+  
   document.getElementById('ai-strain-name').value = p ? p.nombre : '';
   document.getElementById('ai-strain-source').value = '';
   document.getElementById('ai-error').style.display = 'none';
   document.getElementById('modal-plant').classList.add('open');
   setTimeout(()=>document.getElementById('ai-strain-name').focus(),200);
 }
+
 function confirmPlant(){
   const nombre=document.getElementById('mp-nombre').value.trim();
   if(!nombre){showToast('⚠ Ingresá el nombre.',true);return;}
   const eid=document.getElementById('mp-editing-id').value;
   const sativa=parseInt(document.getElementById('mp-sativa').value);
-  const data={nombre,grupoId:document.getElementById('mp-grupo').value||null,color:document.getElementById('mp-color').value,sativa,indica:100-sativa,
-    thc:document.getElementById('mp-thc').value.trim()||'—',cbd:'—',floracion:document.getElementById('mp-floracion').value.trim()||'—',
-    origen:document.getElementById('mp-origen').value.trim()||'—',breeder:document.getElementById('mp-breeder').value.trim()||'—',
-    aroma:document.getElementById('mp-aroma').value.trim()||'—',olor:document.getElementById('mp-olor').value.trim()||'—',
-    gusto:document.getElementById('mp-gusto').value.trim()||'—',efecto:document.getElementById('mp-efecto').value.trim()||'—',
-    colorHoja:document.getElementById('mp-colorhoja').value.trim()||'—',perfil:document.getElementById('mp-perfil').value.trim()};
   
-  if(eid){const idx=plants.findIndex(p=>p.id===eid);plants[idx]={...plants[idx],...data};}
-  else{if(plants.find(p=>p.nombre===nombre)){showToast('⚠ Ya existe esa planta.',true);return;}plants.push({id:'p_'+Date.now(),...data});}
+  const data={
+    nombre,grupoId:document.getElementById('mp-grupo').value||null,color:document.getElementById('mp-color').value,
+    sativa,indica:100-sativa,
+    thc:document.getElementById('mp-thc').value.trim()||'—',cbd:'—',
+    floracion:document.getElementById('mp-floracion').value.trim()||'—',
+    origen:document.getElementById('mp-origen').value.trim()||'—',
+    breeder:document.getElementById('mp-breeder').value.trim()||'—',
+    aroma:document.getElementById('mp-aroma').value.trim()||'—',
+    gusto:document.getElementById('mp-gusto').value.trim()||'—',
+    efecto:document.getElementById('mp-efecto').value.trim()||'—',
+    colorHoja:document.getElementById('mp-colorhoja').value.trim()||'—',
+    perfil:document.getElementById('mp-perfil').value.trim()
+  };
+  
+  if(eid){
+      const idx=plants.findIndex(p=>p.id===eid);
+      plants[idx]={...plants[idx],...data};
+  } else {
+      if(plants.find(p=>p.nombre===nombre)){showToast('⚠ Ya existe esa planta.',true);return;}
+      plants.push({id:'p_'+Date.now(),...data});
+  }
   
   scheduleSave();closeModal('modal-plant');filterPlantsByGroup();
   
-  // Auto-select in form if we are in Cosechar tab
   if(!eid && document.getElementById('tab-cosechar').classList.contains('active')) {
     document.getElementById('input-planta').value = nombre;
   }
@@ -1279,6 +1330,7 @@ function confirmPlant(){
   updateInicioUI();
   showToast(eid?'Planta actualizada':`✓ ${nombre} agregada`);
 }
+
 function deletePlant(pid){
   const p=plants.find(x=>x.id===pid);
   confirmDanger(`Eliminar "${p.nombre}"`,'Esta acción enviará la planta a la papelera. Las cosechas asociadas se conservan.',()=>{
@@ -1321,7 +1373,6 @@ function renderResumen(){
   const bestPlant  = Object.entries(totals).sort((a,b)=>b[1].dry-a[1].dry)[0];
 
   let groupsHtml = '';
-
   const maxVal = Math.max(...Object.values(totals).map(t=>t.dry+t.drying), 1);
 
   // 1. Grupos (Acordeones con Mini-Stats y Barras)
@@ -1369,7 +1420,6 @@ function renderResumen(){
       </div>
       <div class="acc-content ${isOpen?'open':''}" id="${accId}">
         
-        <!-- Mini Stats Grid del Grupo -->
         <div class="stats-grid mini-stats">
           <div class="stat-card"><div class="s-label">Seco Total</div><div class="s-val" style="color:var(--accent)">${gDry.toFixed(1)}<span class="s-unit">g</span></div>${isDivided?`<div style="font-size:.7rem;color:var(--text3);margin-top:.2rem">/ ${fmt(gDry)}g</div>`:''}</div>
           <div class="stat-card"><div class="s-label">En Proceso</div><div class="s-val" style="color:var(--accent2)">${gDrying.toFixed(1)}<span class="s-unit">g</span></div></div>
@@ -1475,7 +1525,7 @@ function renderResumen(){
 }
 
 // ══════════════════════════════════════════════════
-//  EXPORT MODAL & IA
+//  EXPORT MODAL & PDF
 // ══════════════════════════════════════════════════
 function openExportModal(type) {
   document.getElementById('export-type').value = type;
@@ -1500,8 +1550,9 @@ function runExport() {
   closeModal('modal-export');
   const filteredGroups = groups.filter(g => selectedIds.includes(g.id));
   if (type === 'csv') exportCSV(filteredGroups);
-  else showToast('La exportación a PDF no se encuentra implementada en este snippet, puedes conservarla de la versión anterior.');
+  else exportPDF(filteredGroups);
 }
+
 function exportCSV(grps) {
   const sep = ','; const totals = plantTotals(); const rows =[];
   rows.push(['Grupo','Planta','Flor Seca (g)','Secando (g)'].join(sep));
@@ -1517,6 +1568,99 @@ function exportCSV(grps) {
   a.click(); showToast('✓ CSV descargado');
 }
 
+function exportPDF(filteredGroups) {
+  const totals = plantTotals();
+  const grps   = filteredGroups || groups;
+  const date   = new Date().toLocaleDateString('es-UY');
+
+  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body{font-family:Georgia,serif;color:#1a2116;padding:2.5rem;font-size:13px;max-width:900px;margin:0 auto}
+    h1{font-size:2rem;color:#0f130e;border-bottom:2px solid #7fb85a;padding-bottom:.5rem;margin-bottom:.3rem}
+    .subtitle{font-size:.75rem;color:#5a6b50;letter-spacing:.15em;text-transform:uppercase;margin-bottom:2rem}
+    .date{font-size:.75rem;color:#8fa07e;margin-bottom:2rem}
+    h2{font-size:1.1rem;color:#1a2116;background:#e8f0e0;padding:.5rem .8rem;border-left:4px solid #7fb85a;margin:1.5rem 0 .8rem}
+    table{width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:12px}
+    th{background:#2d3d27;color:#d4dcc8;text-align:left;padding:.45rem .7rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase}
+    td{padding:.45rem .7rem;border-bottom:1px solid #e0e8d8;vertical-align:middle}
+    tr:nth-child(even) td{background:#f5f9f0}
+    .num{text-align:right;font-family:monospace}
+    .subtotal td{background:#d4e8c0!important;font-weight:bold}
+    .total-section{background:#1a2116;color:#d4dcc8;padding:1rem 1.2rem;border-radius:4px;margin-top:1.5rem}
+    .total-section h3{margin:0 0 .8rem;color:#7fb85a;font-size:.85rem;letter-spacing:.1em;text-transform:uppercase}
+    .total-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+    .total-item .val{font-size:1.6rem;color:#7fb85a;font-family:Georgia,serif;line-height:1}
+    .total-item .lbl{font-size:.65rem;color:#8fa07e;text-transform:uppercase;letter-spacing:.1em;margin-top:.2rem}
+    .footer{margin-top:2rem;font-size:.7rem;color:#8fa07e;text-align:center;border-top:1px solid #ccc;padding-top:.8rem}
+  </style></head><body>
+  <h1>🌿 Jardín</h1>
+  <div class="subtitle">Registro de cosecha · ${currentUser}${grps.length < groups.length ? ' · Grupos seleccionados: ' + grps.map(g=>g.nombre).join(', ') : ''}</div>
+  <div class="date">Exportado el ${date}</div>`;
+
+  grps.forEach(g => {
+    const gPlants = plants.filter(p => p.grupoId === g.id);
+    if (!gPlants.length) return;
+    const gDry    = gPlants.reduce((s,p)=>s+(totals[p.nombre]?.dry||0),0);
+    const gDrying = gPlants.reduce((s,p)=>s+(totals[p.nombre]?.drying||0),0);
+    const gSecos  = entries.filter(e => gPlants.find(p=>p.nombre===e.planta) && e.estado==='seco');
+    const gRatios = gSecos.filter(e=>e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+    const gRatio  = gRatios.length ? (gRatios.reduce((a,b)=>a+b,0)/gRatios.length).toFixed(1)+'%' : '—';
+
+    html += `<h2>${g.nombre}${g.desc?' — '+g.desc:''}</h2>
+    <table><thead><tr><th>Planta</th><th class="num">Flor seca (g)</th><th class="num">Secando (g)</th><th class="num">Cosechas</th><th class="num">Ratio secado</th></tr></thead><tbody>`;
+
+    gPlants.forEach(p => {
+      const t = totals[p.nombre]||{dry:0,drying:0};
+      const pe = entries.filter(e=>e.planta===p.nombre&&e.estado==='seco');
+      const pr = pe.filter(e=>e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+      const ratio = pr.length ? (pr.reduce((a,b)=>a+b,0)/pr.length).toFixed(1)+'%' : '—';
+      html += `<tr><td>${p.nombre}</td><td class="num">${t.dry.toFixed(1)}</td><td class="num">${t.drying>0?t.drying.toFixed(1):'—'}</td><td class="num">${pe.length}</td><td class="num">${ratio}</td></tr>`;
+    });
+
+    html += `<tr class="subtotal"><td>Subtotal</td><td class="num">${gDry.toFixed(1)}</td><td class="num">${gDrying>0?gDrying.toFixed(1):'—'}</td><td class="num">${gSecos.length}</td><td class="num">${gRatio}</td></tr>`;
+    html += '</tbody></table>';
+  });
+
+  const ung = plants.filter(p=>!p.grupoId);
+  if (ung.length) {
+    html += `<h2>Sin grupo</h2><table><thead><tr><th>Planta</th><th class="num">Flor seca (g)</th><th class="num">Secando (g)</th><th class="num">Cosechas</th><th class="num">Ratio secado</th></tr></thead><tbody>`;
+    ung.forEach(p => {
+      const t = totals[p.nombre]||{dry:0,drying:0};
+      const pe = entries.filter(e=>e.planta===p.nombre&&e.estado==='seco');
+      const pr = pe.filter(e=>e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+      const ratio = pr.length ? (pr.reduce((a,b)=>a+b,0)/pr.length).toFixed(1)+'%' : '—';
+      html += `<tr><td>${p.nombre}</td><td class="num">${t.dry.toFixed(1)}</td><td class="num">${t.drying>0?t.drying.toFixed(1):'—'}</td><td class="num">${pe.length}</td><td class="num">${ratio}</td></tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  const totalDry   = entries.filter(e=>e.estado==='seco').reduce((s,e)=>s+(e.pesoSeco||0),0);
+  const secandoN   = entries.filter(e=>e.estado==='secando').length;
+  const allRatios  = entries.filter(e=>e.estado==='seco'&&e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+  const avgRatio   = allRatios.length ? (allRatios.reduce((a,b)=>a+b,0)/allRatios.length).toFixed(1)+'%' : '—';
+  const best       = Object.entries(totals).sort((a,b)=>b[1].dry-a[1].dry)[0];
+
+  html += `<div class="total-section"><h3>Totales generales</h3>
+    <div class="total-grid">
+      <div class="total-item"><div class="val">${totalDry.toFixed(1)}g</div><div class="lbl">Flor seca total</div></div>
+      <div class="total-item"><div class="val">${secandoN}</div><div class="lbl">Secando</div></div>
+      <div class="total-item"><div class="val">${avgRatio}</div><div class="lbl">Ratio prom. secado</div></div>
+      <div class="total-item"><div class="val" style="font-size:1rem;margin-top:.2rem">${best&&best[1].dry>0?best[0]:'—'}</div><div class="lbl">Mejor planta</div></div>
+    </div></div>
+  <div class="footer">Generado por Jardín · Registro de cosecha · ${date}</div>
+  </body></html>`;
+
+  const w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>{ w.print(); }, 600);
+  showToast('✓ PDF listo para guardar');
+}
+
+// ══════════════════════════════════════════════════
+//  IA
+// ══════════════════════════════════════════════════
 async function aiAutofill() {
   const strainName = document.getElementById('ai-strain-name').value.trim();
   const source     = document.getElementById('ai-strain-source').value.trim();
@@ -1528,7 +1672,7 @@ async function aiAutofill() {
   if (!strainName) { errEl.textContent = '⚠ Ingresá el nombre.'; errEl.style.display = 'block'; return; }
   btn.disabled = true; btnTxt.innerHTML = '⏳ Buscando…';
 
-  const prompt = `Experto cannabis. Cepa: "${strainName}" ${source?`Fuente: "${source}"`:''}. Devuelve SOLO JSON: {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","olor":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
+  const prompt = `Experto cannabis. Cepa: "${strainName}" ${source?`Fuente: "${source}"`:''}. Devuelve SOLO JSON: {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
 
   try {
     const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt) + '?model=openai&json=true&seed=42';
@@ -1542,7 +1686,6 @@ async function aiAutofill() {
     if (parsed.origen)    document.getElementById('mp-origen').value        = parsed.origen;
     if (parsed.breeder)   document.getElementById('mp-breeder').value       = parsed.breeder;
     if (parsed.aroma)     document.getElementById('mp-aroma').value         = parsed.aroma;
-    if (parsed.olor)      document.getElementById('mp-olor').value          = parsed.olor;
     if (parsed.gusto)     document.getElementById('mp-gusto').value         = parsed.gusto;
     if (parsed.efecto)    document.getElementById('mp-efecto').value        = parsed.efecto;
     if (parsed.colorHoja) document.getElementById('mp-colorhoja').value     = parsed.colorHoja;
