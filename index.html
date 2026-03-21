@@ -1,3 +1,4 @@
+html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1375,7 +1376,7 @@ function renderResumen(){
   let groupsHtml = '';
   const maxVal = Math.max(...Object.values(totals).map(t=>t.dry+t.drying), 1);
 
-  // 1. Grupos (Acordeones con Mini-Stats y Barras)
+  // 1. Grupos
   groups.forEach(g => {
     const gPlants = plants.filter(p=>p.grupoId===g.id);
     if (!gPlants.length) return;
@@ -1531,14 +1532,27 @@ function openExportModal(type) {
   document.getElementById('export-type').value = type;
   document.getElementById('export-title').textContent = type === 'csv' ? 'Exportar CSV' : 'Exportar PDF';
   document.getElementById('export-all').checked = true;
-  const list = document.getElementById('export-group-list');
-  list.innerHTML = groups.map(g => `
+  
+  let html = groups.map(g => `
     <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.5rem .7rem;border:1px solid var(--border);border-radius:3px;">
       <input type="checkbox" class="export-grp-chk" value="${g.id}" checked style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer"/>
       <span style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text)">
         <span style="width:8px;height:8px;border-radius:50%;background:${g.color};display:inline-block;flex-shrink:0"></span>${g.nombre}
       </span>
     </label>`).join('');
+
+  const ungrouped = plants.filter(p=>!p.grupoId);
+  if (ungrouped.length) {
+     html += `
+     <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.5rem .7rem;border:1px solid var(--border);border-radius:3px;">
+      <input type="checkbox" class="export-grp-chk" value="__ungrouped__" checked style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer"/>
+      <span style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text)">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--text3);display:inline-block;flex-shrink:0"></span>Sin grupo
+      </span>
+    </label>`;
+  }
+
+  document.getElementById('export-group-list').innerHTML = html;
   document.getElementById('modal-export').classList.add('open');
 }
 function toggleExportAll(checked) { document.querySelectorAll('.export-grp-chk').forEach(c => c.checked = checked); }
@@ -1548,53 +1562,64 @@ function runExport() {
   const selectedIds =[...document.querySelectorAll('.export-grp-chk:checked')].map(c => c.value);
   if (!selectedIds.length) { showToast('⚠ Seleccioná al menos un grupo.', true); return; }
   closeModal('modal-export');
+  
   const filteredGroups = groups.filter(g => selectedIds.includes(g.id));
-  if (type === 'csv') exportCSV(filteredGroups);
-  else exportPDF(filteredGroups);
+  const includeUngrouped = selectedIds.includes('__ungrouped__');
+  
+  if (type === 'csv') exportCSV(filteredGroups, includeUngrouped);
+  else exportPDF(filteredGroups, includeUngrouped);
 }
 
-function exportCSV(grps) {
+function exportCSV(grps, includeUngrouped) {
   const sep = ','; const totals = plantTotals(); const rows =[];
   rows.push(['Grupo','Planta','Flor Seca (g)','Secando (g)'].join(sep));
+  
   grps.forEach(g => {
     plants.filter(p=>p.grupoId===g.id).forEach(p => {
       const t=totals[p.nombre]||{dry:0,drying:0};
       rows.push([`"${g.nombre}"`, `"${p.nombre}"`, t.dry.toFixed(1), t.drying.toFixed(1)].join(sep));
     });
   });
+  
+  if (includeUngrouped) {
+     plants.filter(p=>!p.grupoId).forEach(p => {
+        const t=totals[p.nombre]||{dry:0,drying:0};
+        rows.push([`"Sin grupo"`, `"${p.nombre}"`, t.dry.toFixed(1), t.drying.toFixed(1)].join(sep));
+     });
+  }
+
   const blob = new Blob(['\uFEFF'+rows.join('\n')], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = `jardin-resumen-${new Date().toISOString().split('T')[0]}.csv`;
   a.click(); showToast('✓ CSV descargado');
 }
 
-function exportPDF(filteredGroups) {
+function exportPDF(grps, includeUngrouped) {
   const totals = plantTotals();
-  const grps   = filteredGroups || groups;
   const date   = new Date().toLocaleDateString('es-UY');
 
   let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
   <style>
-    body{font-family:Georgia,serif;color:#1a2116;padding:2.5rem;font-size:13px;max-width:900px;margin:0 auto}
-    h1{font-size:2rem;color:#0f130e;border-bottom:2px solid #7fb85a;padding-bottom:.5rem;margin-bottom:.3rem}
-    .subtitle{font-size:.75rem;color:#5a6b50;letter-spacing:.15em;text-transform:uppercase;margin-bottom:2rem}
-    .date{font-size:.75rem;color:#8fa07e;margin-bottom:2rem}
-    h2{font-size:1.1rem;color:#1a2116;background:#e8f0e0;padding:.5rem .8rem;border-left:4px solid #7fb85a;margin:1.5rem 0 .8rem}
-    table{width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:12px}
-    th{background:#2d3d27;color:#d4dcc8;text-align:left;padding:.45rem .7rem;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase}
-    td{padding:.45rem .7rem;border-bottom:1px solid #e0e8d8;vertical-align:middle}
+    body{font-family:Georgia,serif;color:#1a2116;padding:2rem;font-size:12px;max-width:900px;margin:0 auto}
+    h1{font-size:1.8rem;color:#0f130e;border-bottom:2px solid #7fb85a;padding-bottom:.5rem;margin-bottom:.3rem}
+    .subtitle{font-size:.7rem;color:#5a6b50;letter-spacing:.15em;text-transform:uppercase;margin-bottom:2rem}
+    .date{font-size:.7rem;color:#8fa07e;margin-bottom:2rem}
+    h2{font-size:1rem;color:#1a2116;background:#e8f0e0;padding:.4rem .8rem;border-left:4px solid #7fb85a;margin:1.5rem 0 .8rem}
+    table{width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:11px}
+    th{background:#2d3d27;color:#d4dcc8;text-align:left;padding:.4rem .6rem;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase}
+    td{padding:.4rem .6rem;border-bottom:1px solid #e0e8d8;vertical-align:middle}
     tr:nth-child(even) td{background:#f5f9f0}
-    .num{text-align:right;font-family:monospace}
-    .subtotal td{background:#d4e8c0!important;font-weight:bold}
-    .total-section{background:#1a2116;color:#d4dcc8;padding:1rem 1.2rem;border-radius:4px;margin-top:1.5rem}
+    .num{text-align:right;font-family:monospace;font-size:12px}
+    .subtotal td{background:#d4e8c0!important;font-weight:bold;border-top:1px solid #90cc66}
+    .total-section{background:#1a2116;color:#d4dcc8;padding:1.2rem;border-radius:4px;margin-top:1.5rem;page-break-inside:avoid}
     .total-section h3{margin:0 0 .8rem;color:#7fb85a;font-size:.85rem;letter-spacing:.1em;text-transform:uppercase}
     .total-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
-    .total-item .val{font-size:1.6rem;color:#7fb85a;font-family:Georgia,serif;line-height:1}
-    .total-item .lbl{font-size:.65rem;color:#8fa07e;text-transform:uppercase;letter-spacing:.1em;margin-top:.2rem}
-    .footer{margin-top:2rem;font-size:.7rem;color:#8fa07e;text-align:center;border-top:1px solid #ccc;padding-top:.8rem}
+    .total-item .val{font-size:1.5rem;color:#7fb85a;font-family:Georgia,serif;line-height:1}
+    .total-item .lbl{font-size:.6rem;color:#8fa07e;text-transform:uppercase;letter-spacing:.1em;margin-top:.3rem}
+    .footer{margin-top:2rem;font-size:.7rem;color:#8fa07e;text-align:center;border-top:1px solid #ccc;padding-top:.8rem;page-break-inside:avoid}
   </style></head><body>
   <h1>🌿 Jardín</h1>
-  <div class="subtitle">Registro de cosecha · ${currentUser}${grps.length < groups.length ? ' · Grupos seleccionados: ' + grps.map(g=>g.nombre).join(', ') : ''}</div>
+  <div class="subtitle">Registro de cosecha · ${currentUser}</div>
   <div class="date">Exportado el ${date}</div>`;
 
   grps.forEach(g => {
@@ -1621,17 +1646,24 @@ function exportPDF(filteredGroups) {
     html += '</tbody></table>';
   });
 
-  const ung = plants.filter(p=>!p.grupoId);
-  if (ung.length) {
-    html += `<h2>Sin grupo</h2><table><thead><tr><th>Planta</th><th class="num">Flor seca (g)</th><th class="num">Secando (g)</th><th class="num">Cosechas</th><th class="num">Ratio secado</th></tr></thead><tbody>`;
-    ung.forEach(p => {
-      const t = totals[p.nombre]||{dry:0,drying:0};
-      const pe = entries.filter(e=>e.planta===p.nombre&&e.estado==='seco');
-      const pr = pe.filter(e=>e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
-      const ratio = pr.length ? (pr.reduce((a,b)=>a+b,0)/pr.length).toFixed(1)+'%' : '—';
-      html += `<tr><td>${p.nombre}</td><td class="num">${t.dry.toFixed(1)}</td><td class="num">${t.drying>0?t.drying.toFixed(1):'—'}</td><td class="num">${pe.length}</td><td class="num">${ratio}</td></tr>`;
-    });
-    html += '</tbody></table>';
+  if (includeUngrouped) {
+    const ung = plants.filter(p=>!p.grupoId);
+    if (ung.length) {
+      const gDry    = ung.reduce((s,p)=>s+(totals[p.nombre]?.dry||0),0);
+      const gDrying = ung.reduce((s,p)=>s+(totals[p.nombre]?.drying||0),0);
+      const gSecos  = entries.filter(e => ung.find(p=>p.nombre===e.planta) && e.estado==='seco');
+      
+      html += `<h2>Sin grupo</h2><table><thead><tr><th>Planta</th><th class="num">Flor seca (g)</th><th class="num">Secando (g)</th><th class="num">Cosechas</th><th class="num">Ratio secado</th></tr></thead><tbody>`;
+      ung.forEach(p => {
+        const t = totals[p.nombre]||{dry:0,drying:0};
+        const pe = entries.filter(e=>e.planta===p.nombre&&e.estado==='seco');
+        const pr = pe.filter(e=>e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+        const ratio = pr.length ? (pr.reduce((a,b)=>a+b,0)/pr.length).toFixed(1)+'%' : '—';
+        html += `<tr><td>${p.nombre}</td><td class="num">${t.dry.toFixed(1)}</td><td class="num">${t.drying>0?t.drying.toFixed(1):'—'}</td><td class="num">${pe.length}</td><td class="num">${ratio}</td></tr>`;
+      });
+      html += `<tr class="subtotal"><td>Subtotal</td><td class="num">${gDry.toFixed(1)}</td><td class="num">${gDrying>0?gDrying.toFixed(1):'—'}</td><td class="num">${gSecos.length}</td><td class="num">—</td></tr>`;
+      html += '</tbody></table>';
+    }
   }
 
   const totalDry   = entries.filter(e=>e.estado==='seco').reduce((s,e)=>s+(e.pesoSeco||0),0);
@@ -1645,17 +1677,32 @@ function exportPDF(filteredGroups) {
       <div class="total-item"><div class="val">${totalDry.toFixed(1)}g</div><div class="lbl">Flor seca total</div></div>
       <div class="total-item"><div class="val">${secandoN}</div><div class="lbl">Secando</div></div>
       <div class="total-item"><div class="val">${avgRatio}</div><div class="lbl">Ratio prom. secado</div></div>
-      <div class="total-item"><div class="val" style="font-size:1rem;margin-top:.2rem">${best&&best[1].dry>0?best[0]:'—'}</div><div class="lbl">Mejor planta</div></div>
+      <div class="total-item"><div class="val" style="font-size:1rem;margin-top:.4rem;overflow:hidden;text-overflow:ellipsis">${best&&best[1].dry>0?best[0]:'—'}</div><div class="lbl">Mejor planta</div></div>
     </div></div>
   <div class="footer">Generado por Jardín · Registro de cosecha · ${date}</div>
   </body></html>`;
 
-  const w = window.open('','_blank');
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  setTimeout(()=>{ w.print(); }, 600);
-  showToast('✓ PDF listo para guardar');
+  // El método iframe asegura que se pueda imprimir/guardar el PDF sin importar los bloqueadores de pop-ups en PC o Celular
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = 'none';
+  document.body.appendChild(iframe);
+  
+  iframe.contentWindow.document.open();
+  iframe.contentWindow.document.write(html);
+  iframe.contentWindow.document.close();
+  
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => document.body.removeChild(iframe), 2000);
+  }, 500);
+
+  showToast('✓ PDF listo para imprimir/guardar');
 }
 
 // ══════════════════════════════════════════════════
