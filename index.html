@@ -1788,47 +1788,35 @@ async function aiAutofill() {
   if (!strainName) { errEl.textContent = '⚠ Ingresá el nombre.'; errEl.style.display = 'block'; return; }
   btn.disabled = true; btnTxt.innerHTML = '⏳ Buscando…';
 
-  // Keep prompt SHORT — GET URL has length limits. POST gets blocked by CORS on GitHub Pages.
-  const shortPrompt = `Cannabis strain "${strainName}"${source?` from ${source}`:''} data in JSON (español except names): {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
+  const basePrompt = `Cannabis strain "${strainName}"${source?` source ${source}`:''} reply ONLY JSON no markdown español except proper names: {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
+
+  const endpoints = [
+    `https://text.pollinations.ai/${encodeURIComponent(basePrompt)}?model=openai&json=true`,
+    `https://text.pollinations.ai/${encodeURIComponent(basePrompt)}?model=mistral&json=true`,
+    `https://text.pollinations.ai/${encodeURIComponent(basePrompt)}?model=openai-large&json=true`,
+  ];
 
   try {
-    // Use Anthropic API — works from any origin without CORS issues
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': '',
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        messages: [{
-          role: 'user',
-          content: `Eres experto en cannabis. Cepa: "${strainName}"${source?`. Fuente: "${source}"`:''}.
-Si no tenés info de un campo, inferí desde los parentales.
-Respondé SOLO JSON válido sin markdown, todo en español salvo nombres propios:
-{"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`
-        }]
-      })
-    });
+    let txt = '';
+    let lastErr = '';
 
-    if (!res.ok) {
-      // Fallback to Pollinations GET if Anthropic fails
-      const fallbackPrompt = `Cannabis strain "${strainName}"${source?` source ${source}`:''} reply ONLY JSON no markdown: {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
-      const res2 = await fetch('https://text.pollinations.ai/' + encodeURIComponent(fallbackPrompt) + '?model=openai&json=true');
-      if (!res2.ok) throw new Error('Servicio IA no disponible. Intentá más tarde.');
-      const txt2 = await res2.text();
-      const s2 = txt2.indexOf('{'), e2 = txt2.lastIndexOf('}');
-      if (s2 === -1) throw new Error('Sin respuesta de la IA.');
-      var parsed = JSON.parse(txt2.slice(s2, e2+1));
-    } else {
-      const data = await res.json();
-      const txt = data.content?.[0]?.text || '';
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url, {signal: AbortSignal.timeout(12000)});
+        if (res.ok) { txt = await res.text(); if (txt.includes('{')) break; }
+        else lastErr = `HTTP ${res.status}`;
+      } catch(e) { lastErr = e.message; await new Promise(r=>setTimeout(r,800)); }
+    }
+
+    if (!txt || !txt.includes('{')) throw new Error(lastErr || 'Servicio temporalmente no disponible. Intentá en unos minutos.');
+
+    // Parse JSON
+    let parsed;
+    try { parsed = JSON.parse(txt); }
+    catch(e1) {
       const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
-      if (s === -1) throw new Error('Sin respuesta de la IA.');
-      var parsed = JSON.parse(txt.slice(s, e+1));
+      if (s === -1) throw new Error('Respuesta inválida. Intentá de nuevo.');
+      parsed = JSON.parse(txt.slice(s, e+1));
     }
 
     if (parsed.error) throw new Error('Cepa no encontrada. Verificá el nombre e intentá de nuevo.');
