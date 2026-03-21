@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -290,6 +288,8 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
 .photo-gallery{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;}
 .photo-thumb{width:64px;height:64px;border-radius:4px;object-fit:cover;cursor:pointer;border:1px solid var(--border);transition:border-color .2s,transform .15s;}
 .photo-thumb:hover{border-color:var(--accent);transform:scale(1.05);}
+.photo-add-btn{width:64px;height:64px;border-radius:4px;border:1px dashed var(--border);background:none;color:var(--text3);font-size:1.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .2s,color .2s;}
+.photo-add-btn:hover{border-color:var(--accent);color:var(--accent);}
 .photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;}
 .photo-lightbox.hidden{display:none;}
 .photo-lightbox img{max-width:95vw;max-height:90vh;border-radius:4px;object-fit:contain;}
@@ -396,13 +396,13 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
     <p style="font-size:.72rem;color:var(--text3);letter-spacing:.22em;text-transform:uppercase;text-align:center;margin-bottom:.4rem">Registro de cosecha</p>
     <p style="font-size:.82rem;color:var(--accent);letter-spacing:.06em;text-align:center;margin-bottom:2rem" id="inicio-user-label"></p>
 
-    <!-- ESTADO VACÍO (Nuevo Usuario) -->
+    <!-- ESTADO VACÍO -->
     <div id="inicio-welcome" style="display:none; flex-direction:column; align-items:center; gap:1.2rem; margin-bottom:2rem; background:rgba(127,184,90,.05); padding:2rem; border:1px dashed var(--accent); border-radius:6px; max-width:440px; text-align:center;">
         <div style="font-size:.85rem; color:var(--text2); line-height:1.6;">¡Tu jardín está vacío!<br>Para empezar a registrar tus cosechas, el primer paso es agregar al menos una genética.</div>
         <button onclick="openPlantModal()" style="padding:.9rem 1.8rem;background:var(--accent);color:var(--bg);border:none;font-family:'DM Mono',monospace;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:500;transition:background .2s;box-shadow:0 4px 15px rgba(127,184,90,.3)">🌱 Agregar primera planta</button>
     </div>
 
-    <!-- BOTONES ESTÁNDAR (Usuario con plantas) -->
+    <!-- BOTONES ESTÁNDAR -->
     <div id="inicio-actions" style="display:flex;gap:.8rem;flex-wrap:wrap;justify-content:center">
       <button onclick="openPlantModal()" style="padding:.8rem 1.6rem;background:none;border:1px solid rgba(127,184,90,.35);color:var(--accent);font-family:'DM Mono',monospace;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s">🌱 Nueva Planta</button>
       <button onclick="showTabByName('cosechar')" style="padding:.8rem 1.6rem;background:var(--accent);color:var(--bg);border:none;font-family:'DM Mono',monospace;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:500;transition:background .2s">✦ Nueva cosecha</button>
@@ -1104,7 +1104,7 @@ function renderEntries(){
       const fwDiv=e.pesoFresco?`${cfmt(e.pesoFresco)}g`:'—';
       wH=`<div><span class="w-drying">${fw}</span><div class="w-sub">seco: pendiente</div></div>`;
       wDiv=`<div><span class="w-drying">${fwDiv}</span></div>`;
-      aH=`<div class="action-cell"><button class="btn-update" onclick="openSecoModal(${e.id})">⏳ Seco</button><button class="btn-outline" style="padding:.4rem .6rem" onclick="openEditEntryModal(${e.id})">✎</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕</button></div>`;
+      aH=`<div class="action-cell"><button class="btn-update" onclick="openSecoModal(${e.id})">⏳ Peso seco</button><button class="btn-outline" style="padding:.4rem .6rem" onclick="openEditEntryModal(${e.id})">✎</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
       cardWeight=`<span class="w-drying">${fw}</span>${cdiv>1?`<span style="font-size:.75rem;color:var(--text3);margin-left:.5rem">/ ${fwDiv}</span>`:''}<div class="w-sub" style="font-size:.65rem;color:var(--text3)">seco: pendiente</div>`;
       cardActions=`
         <button onclick="openSecoModal(${e.id})" style="background:rgba(200,168,75,.12);border:1px solid rgba(200,168,75,.3);color:var(--accent2);">⏳ Peso seco</button>
@@ -1219,6 +1219,7 @@ function updateTotals(){
   document.getElementById('totalDrying').textContent=drying.toFixed(1);
   document.getElementById('totalHarvests').textContent=entries.length;
 }
+
 function openSecoModal(id){
   const e=entries.find(x=>x.id===id);if(!e)return;
   editingEntryId=id;
@@ -1229,6 +1230,7 @@ function openSecoModal(id){
   document.getElementById('modal-seco').classList.add('open');
   setTimeout(()=>document.getElementById('ms-peso').focus(),200);
 }
+
 function confirmUpdateSeco(){
   const val=parseFloat(document.getElementById('ms-peso').value);
   if(!val||val<=0){showToast('⚠ Ingresá un peso válido.',true);return;}
@@ -1245,6 +1247,7 @@ function confirmUpdateSeco(){
 }
 
 function loadAllPlantPhotos() {
+  // Asegura que las imágenes no requieran parsear etiquetas scripts inseguras.
   plants.forEach(p => {
     const eid = p.id.replace(/'/g, "\\'");
     if(document.getElementById('plant-photos-' + eid)) {
@@ -1931,7 +1934,7 @@ function exportPDF(grps, includeUngrouped) {
 }
 
 // ══════════════════════════════════════════════════
-//  IA — GEMINI AUTOFILL (Robusto, Seguro, Multi-Modelo)
+//  IA — AUTORESCATE DE IA
 // ══════════════════════════════════════════════════
 const GEMINI_KEY = 'AIzaSyAxvMO3k1W8VNE64bfiDo0kVMfMfXr_KrE';
 
@@ -1947,59 +1950,44 @@ async function aiAutofill() {
 
   btn.disabled = true; btnTxt.innerHTML = '⏳ Buscando…';
 
-  const prompt = `Actúa como un bot experto en cannabis. Tu única salida debe ser un objeto JSON válido, sin ningún texto adicional, ni bloques de código.
-Cepa: "${strainName}" ${source ? `Fuente: "${source}"` : ''}.
-Devuelve exactamente esta estructura (si no conoces algo, infiere de los parentales):
-{"nombre":"nombre exacto","sativa":50,"indica":50,"thc":"porcentaje","floracion":"tiempo en semanas","origen":"Parental A x Parental B","breeder":"banco","aroma":"aromas principales","gusto":"sabor principal","efecto":"efectos","colorHoja":"color","perfil":"descripción de 2 lineas"}
-Si la cepa no existe o no tiene sentido, devuelve {"error":"Cepa no encontrada"}.`;
-
-  const modelsToTry =[
-    'gemini-1.5-flash', 
-    'gemini-1.5-flash-latest', 
-    'gemini-pro', 
-    'gemini-1.0-pro'
-  ];
-  
-  let responseData = null;
-  let lastError = '';
+  const prompt = `Actúa como experto en cannabis. Responde SOLO con un JSON válido, sin texto extra. Cepa: "${strainName}" ${source ? `Fuente: "${source}"` : ''}. Formato exacto: {"nombre":"nombre","sativa":50,"indica":50,"thc":"%","floracion":"tiempo","origen":"cruza","breeder":"banco","aroma":"aromas","gusto":"sabor","efecto":"efectos","colorHoja":"color","perfil":"descripción"}. Si no existe: {"error":"Cepa no encontrada"}.`;
 
   try {
-    for (const model of modelsToTry) {
-        try {
-            const res = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contents:[{ parts: [{ text: prompt }] }],
-                  generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
-                })
-              }
-            );
+    let txt = '';
+    let success = false;
+    let geminiErrorMsg = '';
 
-            const data = await res.json();
-
-            if (!res.ok) {
-              lastError = data.error?.message || `HTTP ${res.status}`;
-              if(lastError.includes('Quota') || lastError.includes('limit: 0')) {
-                  throw new Error("Tu API Key no tiene cupo gratuito habilitado (Quota Limit). Revisa tu cuenta de Google Cloud.");
-              }
-              continue; 
-            }
-
-            responseData = data;
-            break; 
-        } catch(loopErr) {
-            lastError = loopErr.message;
-            if(lastError.includes('cupo gratuito')) throw loopErr;
-        }
+    // INTENTO 1: Gemini API con tu Key
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents:[{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.3 }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || 'Error Gemini');
+      txt = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      success = true;
+    } catch(geminiErr) {
+      geminiErrorMsg = geminiErr.message;
+      success = false;
     }
 
-    if (!responseData) throw new Error(lastError || "No se pudo conectar con la IA de Google Gemini.");
+    // INTENTO 2 (RESCATE AUTOMATICO): Usar servidor alternativo (Pollinations) si Gemini falla por límite de cuenta
+    if (!success) {
+      try {
+        const fallbackRes = await fetch('https://text.pollinations.ai/' + encodeURIComponent(prompt) + '?model=openai&json=true');
+        if(!fallbackRes.ok) throw new Error('Servidores saturados.');
+        txt = await fallbackRes.text();
+      } catch(fallbackErr) {
+        throw new Error('Tu cuenta de Google Cloud restringió el acceso ("Limit: 0") y el servidor de respaldo está lleno. ' + geminiErrorMsg);
+      }
+    }
 
-    const txt = responseData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if (!txt) throw new Error('La IA no devolvió ninguna respuesta. Intentá de nuevo.');
+    if (!txt) throw new Error('La IA no devolvió respuesta.');
 
     let parsed;
     try { parsed = JSON.parse(txt); }
@@ -2007,7 +1995,7 @@ Si la cepa no existe o no tiene sentido, devuelve {"error":"Cepa no encontrada"}
       try { parsed = JSON.parse(txt.replace(/```json|```/g,'').trim()); }
       catch(e2) {
         const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
-        if (s === -1) throw new Error('Respuesta inválida de la IA. Intentá nuevamente.');
+        if (s === -1) throw new Error('Respuesta inválida.');
         parsed = JSON.parse(txt.slice(s, e+1));
       }
     }
@@ -2027,7 +2015,10 @@ Si la cepa no existe o no tiene sentido, devuelve {"error":"Cepa no encontrada"}
 
     const sativaStr = String(parsed.sativa || '50').replace(/\D/g, '');
     const sativaVal = Math.min(100, Math.max(0, parseInt(sativaStr) || 50));
+    
     document.getElementById('mp-sativa').value = sativaVal; 
+    document.getElementById('mp-sativa-num').value = sativaVal; 
+    document.getElementById('mp-indica-num').value = 100 - sativaVal; 
     updSativa();
     
     showToast('✓ Datos de la cepa cargados');
