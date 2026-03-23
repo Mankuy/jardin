@@ -297,6 +297,10 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
 .photo-thumb:hover{border-color:var(--accent);transform:scale(1.05);}
 .photo-add-btn{width:64px;height:64px;border-radius:4px;border:1px dashed var(--border);background:none;color:var(--text3);font-size:1.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .2s,color .2s;}
 .photo-add-btn:hover{border-color:var(--accent);color:var(--accent);}
+.entry-photos-inline{padding:.4rem 0 .1rem;gap:.4rem;}
+.entry-photos-inline .photo-thumb{width:56px;height:56px;}
+.entry-photos-row td{padding:.2rem 1rem .6rem!important;background:var(--bg3);}
+.entry-photos-row .photo-gallery{margin-top:0;}
 .photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;}
 .photo-lightbox.hidden{display:none;}
 .photo-lightbox img{max-width:95vw;max-height:90vh;border-radius:4px;object-fit:contain;}
@@ -467,9 +471,44 @@ document.addEventListener('DOMContentLoaded',()=>{
         <label class="toggle"><input type="checkbox" id="toggle-seco" onchange="toggleSecoInput()"/><span class="toggle-slider"></span></label>
       </div>
       <div id="grupo-seco" style="display:none;margin-top:.6rem">
-        <div class="form-group"><label>Peso seco (g)</label><input type="number" id="input-peso-seco" step="0.1" min="0" placeholder="0.0"/></div>
+        <div class="form-group">
+          <label>Peso seco (g)</label>
+          <div style="display:flex;gap:.5rem;align-items:center;">
+            <input type="number" id="input-peso-seco" step="0.1" min="0" placeholder="0.0" style="flex:1"/>
+            <button type="button" onclick="addNewEntryPartial()" title="Agregar como parcial y sumar"
+              style="padding:.62rem .8rem;background:rgba(127,184,90,.1);border:1px solid rgba(127,184,90,.35);color:var(--accent);font-family:'DM Mono',monospace;font-size:.75rem;border-radius:3px;cursor:pointer;white-space:nowrap;transition:all .2s;">
+              + Parcial
+            </button>
+          </div>
+        </div>
+        <!-- Parciales en staging para nueva cosecha -->
+        <div id="new-entry-partials" style="display:none;margin-bottom:.6rem;">
+          <div style="font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:.4rem;">Parciales</div>
+          <div id="new-entry-partials-list" style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:.4rem;"></div>
+          <div style="font-size:.72rem;color:var(--accent);padding:.3rem .6rem;background:rgba(127,184,90,.08);border-radius:3px;border:1px solid rgba(127,184,90,.2);">
+            Total: <strong id="new-entry-partial-total">0.0</strong> g
+          </div>
+        </div>
       </div>
       <div class="form-group" style="margin-top:.6rem"><label>Nota (opcional)</label><input type="text" id="input-nota" placeholder="top cola, rama lateral..."/></div>
+
+      <!-- Fotos en nueva cosecha -->
+      <div style="margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border);">
+        <div style="font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:.5rem;">Fotos (opcional)</div>
+        <div id="entry-new-photo-gallery" class="photo-gallery" style="margin-bottom:.5rem;"></div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <label style="display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .8rem;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+            📁 Archivo
+            <input type="file" id="entry-photo-file" accept="image/*" multiple style="display:none" onchange="stageEntryPhotos(this.files)"/>
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .8rem;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+            📷 Cámara
+            <input type="file" id="entry-photo-camera" accept="image/*" capture="environment" style="display:none" onchange="stageEntryPhotos(this.files)"/>
+          </label>
+          <span id="entry-photo-count" style="font-size:.68rem;color:var(--accent2);align-self:center;display:none"></span>
+        </div>
+      </div>
+
       <button class="btn-add" onclick="addEntry()">+ Registrar cosecha</button>
     </div>
     <div class="entries-block">
@@ -537,8 +576,56 @@ document.addEventListener('DOMContentLoaded',()=>{
 <div class="modal-overlay" id="modal-seco">
   <div class="modal"><h3>Actualizar peso seco</h3>
     <div class="modal-sub">Fecha: <span class="mh" id="ms-fecha"></span> · <span class="mh" id="ms-planta"></span><br><span id="ms-fresco"></span></div>
-    <div class="form-group"><label>Peso flor seca (g)</label><input type="number" id="ms-peso" step="0.1" min="0" placeholder="0.0"/></div>
-    <div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-seco')">Cancelar</button><button class="btn-confirm" onclick="confirmUpdateSeco()">✓ Guardar</button></div>
+
+    <!-- Modo: reemplazar o sumar -->
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem;">
+      <button type="button" id="ms-mode-set" onclick="setSecoMode('set')"
+        style="flex:1;padding:.55rem;font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;border-radius:3px;cursor:pointer;transition:all .2s;border:1px solid var(--accent);background:rgba(127,184,90,.15);color:var(--accent);">
+        ✎ Definir total
+      </button>
+      <button type="button" id="ms-mode-add" onclick="setSecoMode('add')"
+        style="flex:1;padding:.55rem;font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;border-radius:3px;cursor:pointer;transition:all .2s;border:1px solid var(--border);background:transparent;color:var(--text3);">
+        + Agregar parcial
+      </button>
+    </div>
+    <input type="hidden" id="ms-mode" value="set"/>
+
+    <!-- Parciales acumulados -->
+    <div id="ms-partials-block" style="display:none;margin-bottom:.9rem;">
+      <div style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:.5rem;">Parciales registrados</div>
+      <div id="ms-partials-list" style="display:flex;flex-direction:column;gap:.35rem;max-height:130px;overflow-y:auto;margin-bottom:.5rem;"></div>
+      <div style="font-size:.72rem;color:var(--accent);padding:.35rem .6rem;background:rgba(127,184,90,.08);border-radius:3px;border:1px solid rgba(127,184,90,.2);">
+        Total acumulado: <strong id="ms-partial-total">0.0</strong> g
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label id="ms-peso-label">Peso flor seca (g)</label>
+      <div style="display:flex;gap:.5rem;align-items:center;">
+        <input type="number" id="ms-peso" step="0.1" min="0" placeholder="0.0" style="flex:1"/>
+        <button type="button" id="ms-add-partial-btn" onclick="addPartialSeco()" style="display:none;padding:.65rem .9rem;background:rgba(127,184,90,.15);border:1px solid rgba(127,184,90,.4);color:var(--accent);font-family:'DM Mono',monospace;font-size:.75rem;border-radius:3px;cursor:pointer;white-space:nowrap;transition:all .2s;">+ Sumar</button>
+      </div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-seco')">Cancelar</button>
+      <button class="btn-confirm" id="ms-confirm-btn" onclick="confirmUpdateSeco()">✓ Guardar</button>
+    </div>
+
+    <!-- Fotos de la cosecha -->
+    <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid var(--border);">
+      <div style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:.5rem;">Fotos de esta cosecha</div>
+      <div id="ms-photo-gallery" class="photo-gallery" style="margin-bottom:.5rem;min-height:20px;"></div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+        <label style="display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .75rem;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+          📁 Archivo <input type="file" id="ms-photo-file" accept="image/*" multiple style="display:none" onchange="handleEntryPhotoUpload(this.files)"/>
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .75rem;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+          📷 Cámara <input type="file" id="ms-photo-camera" accept="image/*" capture="environment" style="display:none" onchange="handleEntryPhotoUpload(this.files)"/>
+        </label>
+        <span id="ms-photo-uploading" style="font-size:.68rem;color:var(--accent2);display:none">⏳ Subiendo…</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1110,23 +1197,124 @@ function populatePlantGroupSel(selId,gid){
   if(gid)sel.value=gid;
 }
 
-function toggleSecoInput(){document.getElementById('grupo-seco').style.display=document.getElementById('toggle-seco').checked?'block':'none';}
-function addEntry(){
+function toggleSecoInput(){
+  document.getElementById('grupo-seco').style.display=document.getElementById('toggle-seco').checked?'block':'none';
+  if (!document.getElementById('toggle-seco').checked) {
+    // Reset partials when toggling off
+    stagedNewEntryPartials = [];
+    document.getElementById('new-entry-partials').style.display = 'none';
+    document.getElementById('new-entry-partials-list').innerHTML = '';
+    document.getElementById('input-peso-seco').value = '';
+  }
+}
+
+let stagedNewEntryPartials = [];
+
+function addNewEntryPartial() {
+  const val = parseFloat(document.getElementById('input-peso-seco').value);
+  if (!val || val <= 0) { showToast('⚠ Ingresá un valor válido.', true); return; }
+  stagedNewEntryPartials.push({ g: val, ts: Date.now() });
+  const total = stagedNewEntryPartials.reduce((s,p)=>s+p.g, 0);
+  // Update input with running total so addEntry() picks it up
+  document.getElementById('input-peso-seco').value = total.toFixed(1);
+  // Show partial list
+  const block = document.getElementById('new-entry-partials');
+  const list = document.getElementById('new-entry-partials-list');
+  block.style.display = 'block';
+  list.innerHTML = stagedNewEntryPartials.map((p,i) =>
+    `<div style="display:flex;justify-content:space-between;font-size:.72rem;padding:.25rem .5rem;background:var(--bg3);border-radius:3px;">
+      <span style="color:var(--text3)">#${i+1}</span>
+      <span style="color:var(--accent)">${p.g.toFixed(1)} g</span>
+    </div>`
+  ).join('');
+  document.getElementById('new-entry-partial-total').textContent = total.toFixed(1);
+  document.getElementById('input-peso-seco').value = '';
+  showToast(`+${val}g · Total: ${total.toFixed(1)}g`);
+}
+
+// ── Fotos en staging para nueva cosecha ──
+let stagedEntryPhotos = []; // [{dataUrl, name}]
+
+function stageEntryPhotos(files) {
+  if (!files || !files.length) return;
+  const countEl = document.getElementById('entry-photo-count');
+  const gallery = document.getElementById('entry-new-photo-gallery');
+  Array.from(files).forEach(async file => {
+    const b64 = await compressImage(file);
+    stagedEntryPhotos.push(b64);
+    const img = document.createElement('img');
+    img.className = 'photo-thumb';
+    img.src = b64;
+    const idx = stagedEntryPhotos.length - 1;
+    img.onclick = () => {
+      stagedEntryPhotos.splice(idx, 1);
+      img.remove();
+      countEl.textContent = stagedEntryPhotos.length ? `${stagedEntryPhotos.length} foto${stagedEntryPhotos.length>1?'s':''}` : '';
+      countEl.style.display = stagedEntryPhotos.length ? 'inline' : 'none';
+    };
+    img.title = 'Tocá para quitar';
+    gallery.appendChild(img);
+    countEl.textContent = `${stagedEntryPhotos.length} foto${stagedEntryPhotos.length>1?'s':''}`;
+    countEl.style.display = 'inline';
+  });
+  document.getElementById('entry-photo-file').value = '';
+  document.getElementById('entry-photo-camera').value = '';
+}
+
+async function addEntry(){
   const fecha=document.getElementById('input-fecha').value,planta=document.getElementById('input-planta').value;
   const pesoFresco=parseFloat(document.getElementById('input-peso-fresco').value)||null;
   const hasSeco=document.getElementById('toggle-seco').checked;
-  const pesoSeco=hasSeco?parseFloat(document.getElementById('input-peso-seco').value):null;
+  // Use partials total if there are staged partials, otherwise use the input directly
+  let pesoSeco = null;
+  let finalPartials = [];
+  if (hasSeco) {
+    if (stagedNewEntryPartials.length > 0) {
+      pesoSeco = stagedNewEntryPartials.reduce((s,p)=>s+p.g, 0);
+      finalPartials = [...stagedNewEntryPartials];
+    } else {
+      pesoSeco = parseFloat(document.getElementById('input-peso-seco').value) || null;
+      if (pesoSeco) finalPartials = [{ g: pesoSeco, ts: Date.now() }];
+    }
+  }
   const nota=document.getElementById('input-nota').value.trim();
   if(!fecha||!planta){showToast('⚠ Completá fecha y planta.',true);return;}
   if(hasSeco&&(!pesoSeco||pesoSeco<=0)){showToast('⚠ Ingresá el peso seco.',true);return;}
   if(hasSeco&&pesoFresco&&pesoSeco>=pesoFresco){showToast('⚠ El peso seco debe ser menor al fresco.',true);return;}
-  entries.push({id:Date.now(),fecha,planta,pesoFresco,pesoSeco,estado:hasSeco?'seco':'secando',nota});
+  const entryId = Date.now();
+  const newEntry = {id:entryId,fecha,planta,pesoFresco,pesoSeco,estado:hasSeco?'seco':'secando',nota,pesoParciales:finalPartials};
+  entries.push(newEntry);
   entries.sort((a,b)=>a.fecha.localeCompare(b.fecha));
   scheduleSave();renderEntries();updateTotals();
+
+  // Subir fotos en staging
+  if (stagedEntryPhotos.length) {
+    const eKey = 'entry_' + entryId;
+    try {
+      for (const b64 of stagedEntryPhotos) {
+        const photoKey = 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+        await dbRef(`entryPhotos/${currentUser}/${eKey}/${photoKey}`).set(b64);
+      }
+      newEntry.hasPhotos = true;
+      scheduleSave();
+      renderEntries();
+    } catch(err) { showToast('⚠ Error subiendo fotos: '+err.message, true); }
+  }
+
+  // Reset form
   document.getElementById('input-peso-fresco').value='';document.getElementById('input-peso-seco').value='';
   document.getElementById('input-nota').value='';document.getElementById('toggle-seco').checked=false;
   document.getElementById('grupo-seco').style.display='none';
-  showToast(hasSeco?`✓ ${pesoSeco}g secos de ${planta}`:`✓ ${planta} en secado`);
+  // Reset partials staging
+  stagedNewEntryPartials = [];
+  document.getElementById('new-entry-partials').style.display='none';
+  document.getElementById('new-entry-partials-list').innerHTML='';
+  // Reset photos staging
+  stagedEntryPhotos = [];
+  document.getElementById('entry-new-photo-gallery').innerHTML = '';
+  const countEl = document.getElementById('entry-photo-count');
+  countEl.textContent=''; countEl.style.display='none';
+  showToast(hasSeco?`✓ ${pesoSeco.toFixed(1)}g secos de ${planta}`:`✓ ${planta} en secado`);
 }
 function setFilter(f,btn){activeFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderEntries();}
 
@@ -1150,6 +1338,9 @@ function renderEntries(){
   const rows=[...filtered].reverse().map(e=>{
     const p=plants.find(x=>x.nombre===e.planta)||{color:'#7fb85a'};
     const d=e.fecha.split('-').reverse().join('/');
+    const photoIcon = e.hasPhotos ? `<span title="Tiene fotos" style="font-size:.8rem;opacity:.7;cursor:pointer" onclick="openSecoModal(${e.id})">📷</span>` : '';
+    const partialesInfo = (e.pesoParciales && e.pesoParciales.length > 1)
+      ? `<div class="w-sub">${e.pesoParciales.length} parciales</div>` : '';
     let wH,sH,aH,cardActions,cardWeight,wDiv='';
     if(e.estado==='secando'){
       sH=`<span class="status-badge secando">⏳ secando</span>`;
@@ -1157,7 +1348,7 @@ function renderEntries(){
       const fwDiv=e.pesoFresco?`${cfmt(e.pesoFresco)}g`:'—';
       wH=`<div><span class="w-drying">${fw}</span><div class="w-sub">seco: pendiente</div></div>`;
       wDiv=`<div><span class="w-drying">${fwDiv}</span></div>`;
-      aH=`<div class="action-cell"><button class="btn-update" onclick="openSecoModal(${e.id})">⏳ Peso seco</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
+      aH=`<div class="action-cell">${photoIcon}<button class="btn-update" onclick="openSecoModal(${e.id})">⏳ Peso seco</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
       cardWeight=`<span class="w-drying">${fw}</span>${cdiv>1?`<span style="font-size:.75rem;color:var(--text3);margin-left:.5rem">/ ${fwDiv}</span>`:''}<div class="w-sub" style="font-size:.65rem;color:var(--text3)">seco: pendiente</div>`;
       cardActions=`
         <button onclick="openSecoModal(${e.id})" style="background:rgba(200,168,75,.12);border:1px solid rgba(200,168,75,.3);color:var(--accent2);">⏳ Peso seco</button>
@@ -1166,20 +1357,25 @@ function renderEntries(){
       sH=`<span class="status-badge seco">✓ seco</span>`;
       const fw=e.pesoFresco?`fresco: ${e.pesoFresco.toFixed(1)}g`:'';
       const ratio=(e.pesoFresco&&e.pesoSeco)?` · ${((e.pesoSeco/e.pesoFresco)*100).toFixed(0)}% ratio`:'';
-      wH=`<div><span class="w-dry">${e.pesoSeco.toFixed(1)} g</span>${(fw||ratio)?`<div class="w-sub">${fw}${ratio}</div>`:''}</div>`;
+      wH=`<div><span class="w-dry">${e.pesoSeco.toFixed(1)} g</span>${(fw||ratio)?`<div class="w-sub">${fw}${ratio}</div>`:''}${partialesInfo}</div>`;
       wDiv=`<div><span class="w-dry">${cfmt(e.pesoSeco)} g</span></div>`;
-      cardWeight=`<span class="w-dry" style="font-size:.9rem;font-weight:500">${e.pesoSeco.toFixed(1)} g seco</span>${cdiv>1?`<span style="font-size:.75rem;color:var(--text3);margin-left:.5rem">/ ${cfmt(e.pesoSeco)} g</span>`:''} ${fw?`<div class="w-sub" style="font-size:.65rem;color:var(--text3)">${fw}${ratio}</div>`:''}`;
-      cardActions=`<button onclick="deleteEntry(${e.id})" style="background:none;border:1px solid var(--border);color:var(--accent3);">✕ Eliminar entrada</button>`;
-      aH=`<div class="action-cell"><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
+      cardWeight=`<span class="w-dry" style="font-size:.9rem;font-weight:500">${e.pesoSeco.toFixed(1)} g seco</span>${cdiv>1?`<span style="font-size:.75rem;color:var(--text3);margin-left:.5rem">/ ${cfmt(e.pesoSeco)} g</span>`:''} ${fw?`<div class="w-sub" style="font-size:.65rem;color:var(--text3)">${fw}${ratio}</div>`:''}${partialesInfo}`;
+      cardActions=`
+        <button onclick="openSecoModal(${e.id})" style="background:rgba(127,184,90,.07);border:1px solid rgba(127,184,90,.2);color:var(--accent);">📷 Fotos / Editar</button>
+        <button onclick="deleteEntry(${e.id})" style="background:none;border:1px solid var(--border);color:var(--accent3);flex:0;padding:.55rem .8rem;">✕</button>`;
+      aH=`<div class="action-cell">${photoIcon}<button class="btn-update" style="background:rgba(127,184,90,.07);border-color:rgba(127,184,90,.25);color:var(--accent)" onclick="openSecoModal(${e.id})">📷 Editar</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
     }
-    const tableRow=`<tr><td>${d}</td><td><span class="plant-badge"><span class="plant-badge-dot" style="background:${p.color}"></span>${e.planta}</span></td><td>${wH}</td>${cdiv>1?`<td>${wDiv}</td>`:''}<td>${sH}</td><td style="font-size:.68rem;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.nota||''}">${e.nota||'—'}</td><td>${aH}</td></tr>`;
+    const photoTrCols = cdiv>1 ? 7 : 6;
+    const photoTableRow = e.hasPhotos ? `<tr class="entry-photos-row"><td colspan="${photoTrCols}"><div id="entry-photos-${e.id}" class="photo-gallery entry-photos-inline"></div></td></tr>` : '';
+    const tableRow=`<tr><td>${d}</td><td><span class="plant-badge"><span class="plant-badge-dot" style="background:${p.color}"></span>${e.planta}</span></td><td>${wH}</td>${cdiv>1?`<td>${wDiv}</td>`:''}<td>${sH}</td><td style="font-size:.68rem;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.nota||''}">${e.nota||'—'}</td><td>${aH}</td></tr>${photoTableRow}`;
     const card=`<div class="entry-card">
       <div class="entry-card-top">
         <div class="entry-card-name"><span style="width:8px;height:8px;border-radius:50%;background:${p.color};display:inline-block;flex-shrink:0"></span>${e.planta}</div>
-        <div class="entry-card-date">${d}</div>
+        <div class="entry-card-date">${d} ${photoIcon}</div>
       </div>
       <div class="entry-card-mid"><div>${cardWeight}</div>${sH}</div>
       ${e.nota?`<div style="font-size:.68rem;color:var(--text3);margin-top:.4rem">${e.nota}</div>`:''}
+      ${e.hasPhotos?`<div id="entry-photos-card-${e.id}" class="photo-gallery entry-photos-inline"></div>`:''}
       <div class="entry-card-actions">${cardActions}</div>
     </div>`;
     return {tableRow, card};
@@ -1189,6 +1385,8 @@ function renderEntries(){
     <thead><tr><th>Fecha</th><th>Planta</th><th>Peso total</th>${cdiv>1?`<th>÷ ${cdiv}</th>`:''}<th>Estado</th><th>Nota</th><th></th></tr></thead>
     <tbody>${rows.map(r=>r.tableRow).join('')}</tbody></table>`+
   `<div class="entry-cards">${rows.map(r=>r.card).join('')}</div>`;
+  // Load inline photos for entries that have them
+  filtered.filter(e=>e.hasPhotos).forEach(e=>renderEntryPhotosInline(e.id));
 }
 
 function deleteEntry(id){
@@ -1212,16 +1410,110 @@ function openSecoModal(id){
   document.getElementById('ms-planta').textContent=e.planta;
   document.getElementById('ms-fresco').textContent=e.pesoFresco?`Peso fresco: ${e.pesoFresco.toFixed(1)}g`:'Sin peso fresco';
   document.getElementById('ms-peso').value='';
+  // Reset mode to 'set'
+  setSecoMode('set');
   document.getElementById('modal-seco').classList.add('open');
+  // Load entry photos
+  renderEntryPhotoGallery(id);
   setTimeout(()=>document.getElementById('ms-peso').focus(),200);
 }
+
+function setSecoMode(mode) {
+  document.getElementById('ms-mode').value = mode;
+  const btnSet = document.getElementById('ms-mode-set');
+  const btnAdd = document.getElementById('ms-mode-add');
+  const partialsBlock = document.getElementById('ms-partials-block');
+  const addBtn = document.getElementById('ms-add-partial-btn');
+  const lbl = document.getElementById('ms-peso-label');
+  const confirmBtn = document.getElementById('ms-confirm-btn');
+
+  if (mode === 'set') {
+    btnSet.style.background='rgba(127,184,90,.15)'; btnSet.style.borderColor='var(--accent)'; btnSet.style.color='var(--accent)';
+    btnAdd.style.background='transparent'; btnAdd.style.borderColor='var(--border)'; btnAdd.style.color='var(--text3)';
+    partialsBlock.style.display='none';
+    addBtn.style.display='none';
+    lbl.textContent='Peso flor seca total (g)';
+    confirmBtn.textContent='✓ Guardar';
+  } else {
+    btnAdd.style.background='rgba(127,184,90,.15)'; btnAdd.style.borderColor='var(--accent)'; btnAdd.style.color='var(--accent)';
+    btnSet.style.background='transparent'; btnSet.style.borderColor='var(--border)'; btnSet.style.color='var(--text3)';
+    partialsBlock.style.display='block';
+    addBtn.style.display='inline-flex';
+    lbl.textContent='Nuevo parcial (g)';
+    confirmBtn.textContent='✓ Guardar total';
+    // Load existing partials for this entry
+    const e = entries.find(x=>x.id===editingEntryId);
+    const partials = (e && e.pesoParciales) || [];
+    renderPartialsList(partials);
+  }
+}
+
+function renderPartialsList(partials) {
+  const list = document.getElementById('ms-partials-list');
+  const totalEl = document.getElementById('ms-partial-total');
+  if (!partials.length) {
+    list.innerHTML = '<div style="font-size:.72rem;color:var(--text3);font-style:italic;padding:.2rem 0">Aún no hay parciales. Agregá el primero.</div>';
+    totalEl.textContent = '0.0';
+    return;
+  }
+  const total = partials.reduce((s,p)=>s+p.g, 0);
+  list.innerHTML = partials.map((p,i) =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem .5rem;background:var(--bg3);border-radius:3px;font-size:.75rem;">
+      <span style="color:var(--text3)">#${i+1} · ${p.ts ? new Date(p.ts).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'}) : '—'}</span>
+      <span style="color:var(--accent);font-weight:500">${p.g.toFixed(1)} g</span>
+      <button onclick="removePartial(${i})" style="background:none;border:none;color:var(--accent3);cursor:pointer;font-size:.8rem;padding:0 .2rem;line-height:1">✕</button>
+    </div>`
+  ).join('');
+  totalEl.textContent = total.toFixed(1);
+}
+
+function addPartialSeco() {
+  const val = parseFloat(document.getElementById('ms-peso').value);
+  if (!val || val <= 0) { showToast('⚠ Ingresá un valor válido.', true); return; }
+  const e = entries.find(x=>x.id===editingEntryId); if(!e) return;
+  if (!e.pesoParciales) e.pesoParciales = [];
+  e.pesoParciales.push({ g: val, ts: Date.now() });
+  // Update total
+  const total = e.pesoParciales.reduce((s,p)=>s+p.g, 0);
+  e.pesoSeco = total;
+  e.estado = 'seco';
+  scheduleSave();
+  document.getElementById('ms-peso').value = '';
+  renderPartialsList(e.pesoParciales);
+  showToast(`✓ +${val}g · Total: ${total.toFixed(1)}g`);
+  renderEntries(); updateTotals();
+}
+
+function removePartial(idx) {
+  const e = entries.find(x=>x.id===editingEntryId); if(!e||!e.pesoParciales) return;
+  e.pesoParciales.splice(idx, 1);
+  const total = e.pesoParciales.reduce((s,p)=>s+p.g, 0);
+  e.pesoSeco = total || null;
+  e.estado = total > 0 ? 'seco' : 'secando';
+  scheduleSave();
+  renderPartialsList(e.pesoParciales);
+  renderEntries(); updateTotals();
+}
+
 function confirmUpdateSeco(){
-  const val=parseFloat(document.getElementById('ms-peso').value);
-  if(!val||val<=0){showToast('⚠ Ingresá un peso válido.',true);return;}
-  const e=entries.find(x=>x.id===editingEntryId);if(!e)return;
-  e.pesoSeco=val;e.estado='seco';
-  scheduleSave();closeModal('modal-seco');renderEntries();updateTotals();
-  showToast(`✓ ${val}g secos de ${e.planta}`);
+  const mode = document.getElementById('ms-mode').value;
+  const e = entries.find(x=>x.id===editingEntryId); if(!e) return;
+
+  if (mode === 'set') {
+    const val=parseFloat(document.getElementById('ms-peso').value);
+    if(!val||val<=0){showToast('⚠ Ingresá un peso válido.',true);return;}
+    e.pesoSeco=val; e.estado='seco';
+    // Clear partials if switching to manual total
+    e.pesoParciales = [];
+    scheduleSave();closeModal('modal-seco');renderEntries();updateTotals();
+    showToast(`✓ ${val}g secos de ${e.planta}`);
+  } else {
+    // In sum mode — total is already saved live, just close
+    const total = e.pesoParciales ? e.pesoParciales.reduce((s,p)=>s+p.g,0) : e.pesoSeco;
+    if (!total || total <= 0) { showToast('⚠ Agregá al menos un parcial.', true); return; }
+    closeModal('modal-seco');
+    showToast(`✓ ${total.toFixed(1)}g secos de ${e.planta}`);
+  }
 }
 
 // ══════════════════════════════════════════════════
@@ -1296,6 +1588,8 @@ function renderGroupsIndex(){
   }
   
   document.getElementById('groups-accordion-list').innerHTML = html;
+  // Load plant photos into each card (inline scripts in innerHTML don't execute)
+  plants.forEach(p => renderPhotoGallery(p.id, 'plant-photos-' + p.id, false));
 }
 
 function plantCardHTML(p, totals) {
@@ -1349,8 +1643,7 @@ function plantCardHTML(p, totals) {
     </div>
 
     <!-- Photo gallery (loaded async) -->
-    <div id="plant-photos-${eid}" class="photo-gallery plant-photos-inline" style="padding:.5rem 1.1rem;"></div>
-    <script>renderPhotoGallery('${p.id}','plant-photos-${eid}',false);<\/script>
+    <div id="plant-photos-${eid}" class="photo-gallery plant-photos-inline" style="padding:.5rem 1.1rem;" data-plant-id="${p.id}"></div>
 
     <div class="plant-footer">
       ${hasExtra ? `<button class="btn-plant-action" onclick="togglePlant('${eid}')" style="margin-right:auto; color:var(--text2);">⇕ Info</button>` : ''}
@@ -1914,31 +2207,39 @@ function findStrain(name) {
 }
 
 // Fallback: Pollinations con retry robusto
+// ── Caché de cepas en localStorage ──────────────────
+const STRAIN_CACHE_KEY = 'jd_strain_cache_v1';
+function getStrainCache() {
+  try { return JSON.parse(localStorage.getItem(STRAIN_CACHE_KEY) || '{}'); } catch { return {}; }
+}
+function saveStrainCache(name, data) {
+  try {
+    const c = getStrainCache();
+    c[normalizeStrain(name)] = data;
+    localStorage.setItem(STRAIN_CACHE_KEY, JSON.stringify(c));
+  } catch {}
+}
+
+// ── IA paralela: lanza todos los modelos a la vez, gana el primero ──
 async function aiFetchRemote(prompt) {
-  const models = ['openai','mistral','openai-large','llama'];
-  const RETRIES = 3;
-  let lastErr = '';
-  for (const model of models) {
-    for (let att = 0; att < RETRIES; att++) {
-      try {
-        if (att > 0) await new Promise(r => setTimeout(r, (att * 2500) + Math.random() * 1500));
-        const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
-          + '?model=' + model + '&json=true&seed=' + Math.floor(Math.random()*99999)
-          + '&cachebust=' + Date.now();
-        const res = await fetch(url, { signal: AbortSignal.timeout(25000) });
-        if ([429,502,503,504].includes(res.status)) { lastErr = 'Servidor ocupado'; continue; }
-        if (!res.ok) { lastErr = 'HTTP ' + res.status; break; }
-        const txt = await res.text();
-        if (!txt || !txt.includes('{')) { lastErr = 'Sin datos'; break; }
-        try { return JSON.parse(txt); } catch {}
-        try { return JSON.parse(txt.replace(/```json|```/g,'').trim()); } catch {}
-        const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
-        if (s !== -1 && e !== -1) return JSON.parse(txt.slice(s, e+1));
-        lastErr = 'Respuesta inválida';
-      } catch(e) { lastErr = e.message; }
-    }
-  }
-  throw new Error(lastErr || 'Servicio no disponible');
+  const models = ['gemini','openai','mistral','llama','openai-large'];
+  const tryModel = async (model) => {
+    const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
+      + '?model=' + model + '&json=true&seed=' + Math.floor(Math.random()*99999)
+      + '&cachebust=' + Date.now();
+    const res = await fetch(url, { signal: AbortSignal.timeout(22000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const txt = await res.text();
+    if (!txt || !txt.includes('{')) throw new Error('Sin datos');
+    let parsed;
+    try { parsed = JSON.parse(txt); } catch {}
+    if (!parsed) try { parsed = JSON.parse(txt.replace(/```json[\s\S]*?```|```/g,'').trim()); } catch {}
+    if (!parsed) { const s=txt.indexOf('{'),e=txt.lastIndexOf('}'); if(s!==-1&&e!==-1) parsed=JSON.parse(txt.slice(s,e+1)); }
+    if (!parsed) throw new Error('JSON inválido');
+    return parsed;
+  };
+  // Promise.any: resuelve con el primero que tenga éxito
+  return Promise.any(models.map(m => tryModel(m))).catch(() => { throw new Error('Servicio no disponible'); });
 }
 
 async function aiAutofill() {
@@ -1953,25 +2254,40 @@ async function aiAutofill() {
   btn.disabled = true; btnTxt.innerHTML = '⏳ Buscando…';
 
   try {
-    // 1. Buscar en base de datos local (instantáneo, 100% confiable)
+    // 1. Base de datos local (instantáneo)
     const local = findStrain(strainName);
     let parsed = null;
+    let origin = '';
 
     if (local) {
-      parsed = local;
-      btnTxt.innerHTML = '⏳ Encontrado localmente…';
+      parsed = local; origin = 'base local';
     } else {
-      // 2. Fallback: API de IA
-      btnTxt.innerHTML = '⏳ Consultando IA…';
-      const p = `cannabis strain "${strainName}"${source?` from ${source}`:''} JSON only español except names: {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
-      parsed = await aiFetchRemote(p);
+      // 2. Caché localStorage (instantáneo si ya se buscó antes)
+      const cache = getStrainCache();
+      const ck = normalizeStrain(strainName);
+      if (cache[ck] && !source) {
+        parsed = cache[ck]; origin = 'caché';
+      } else {
+        // 3. IA remota paralela (todos los modelos a la vez)
+        btnTxt.innerHTML = '⏳ Consultando IA…';
+        const p = `You are a cannabis genetics expert. Return ONLY a valid JSON object for the strain "${strainName}"${source?` by ${source}`:''}.
+All text fields in Spanish (except proper names/brand names). JSON schema:
+{"nombre":"${strainName}","sativa":50,"indica":50,"thc":"20%","cbd":"<1%","floracion":"8-9 semanas","origen":"Parent A x Parent B","breeder":"Seed Bank","aroma":"descripción aroma","gusto":"descripción gusto","efecto":"descripción efecto","colorHoja":"verde oscuro","perfil":"perfil de cultivo 2-3 oraciones"}
+sativa+indica=100. If unknown return best estimate. Return JSON only, no markdown.`;
+        parsed = await aiFetchRemote(p);
+        if (parsed && !parsed.error) { saveStrainCache(strainName, parsed); origin = 'IA'; }
+      }
     }
 
     if (!parsed) throw new Error('No se encontraron datos.');
     if (parsed.error) throw new Error('Cepa no encontrada. Verificá el nombre.');
 
     document.getElementById('mp-nombre').value    = parsed.nombre    || strainName;
-    if (parsed.thc)       document.getElementById('mp-thc').value       = parsed.thc;
+    if (parsed.thc) {
+      // Combinar CBD en el campo THC si viene separado
+      const cbdSuffix = (parsed.cbd && parsed.cbd !== '—') ? ' · CBD ' + parsed.cbd : '';
+      document.getElementById('mp-thc').value = parsed.thc + cbdSuffix;
+    }
     if (parsed.floracion) document.getElementById('mp-floracion').value = parsed.floracion;
     if (parsed.origen)    document.getElementById('mp-origen').value    = parsed.origen;
     if (parsed.breeder)   document.getElementById('mp-breeder').value   = parsed.breeder;
@@ -1983,7 +2299,8 @@ async function aiAutofill() {
 
     const sativaVal = Math.min(100, Math.max(0, parseInt(parsed.sativa) || 50));
     document.getElementById('mp-sativa').value = sativaVal; updSativa();
-    showToast(local ? '✓ Datos cargados (base local)' : '✓ Datos cargados (IA)');
+    const originLabels = {'base local':'base local','caché':'caché ✦','IA':'IA ✦'};
+    showToast('✓ Datos cargados · ' + (originLabels[origin] || origin));
 
   } catch(e) {
     errEl.textContent = '⚠ ' + (e.message || 'Error. Intentá de nuevo.');
@@ -2101,6 +2418,92 @@ async function deletePhoto(pid, key) {
     renderGroupsIndex();
     showToast('Foto eliminada');
   } catch(e) { showToast('⚠ Error', true); }
+}
+
+// ══════════════════════════════════════════════════
+//  FOTOS DE COSECHAS (entry photos)
+// ══════════════════════════════════════════════════
+async function handleEntryPhotoUpload(files) {
+  if (!files || !files.length) return;
+  const eid = editingEntryId;
+  if (!eid) { showToast('⚠ Error: no hay cosecha seleccionada.', true); return; }
+  const eKey = 'entry_' + eid;
+  document.getElementById('ms-photo-uploading').style.display = 'inline';
+  try {
+    for (const file of Array.from(files)) {
+      const b64 = await compressImage(file);
+      const key = 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+      await dbRef(`entryPhotos/${currentUser}/${eKey}/${key}`).set(b64);
+    }
+    // Mark entry as having photos
+    const e = entries.find(x=>x.id===eid);
+    if (e) { e.hasPhotos = true; scheduleSave(); }
+    await renderEntryPhotoGallery(eid);
+    renderEntries();
+    showToast('✓ Foto guardada');
+  } catch(err) { showToast('⚠ Error al guardar foto: ' + err.message, true); }
+  finally {
+    document.getElementById('ms-photo-uploading').style.display = 'none';
+    document.getElementById('ms-photo-file').value = '';
+    document.getElementById('ms-photo-camera').value = '';
+  }
+}
+
+async function renderEntryPhotoGallery(entryId) {
+  const container = document.getElementById('ms-photo-gallery');
+  if (!container) return;
+  const eKey = 'entry_' + entryId;
+  try {
+    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
+    const photos = snap.exists() ? snap.val() : {};
+    const keys = Object.keys(photos);
+    if (!keys.length) { container.innerHTML = ''; return; }
+    container.innerHTML = keys.map(k =>
+      `<img class="photo-thumb" src="${photos[k]}" onclick="openEntryLightbox('${entryId}','${k}',\`${photos[k]}\`)" alt="foto"/>`
+    ).join('');
+  } catch(e) { container.innerHTML = ''; }
+}
+
+async function renderEntryPhotosInline(entryId) {
+  const eKey = 'entry_' + entryId;
+  try {
+    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
+    const photos = snap.exists() ? snap.val() : {};
+    const keys = Object.keys(photos);
+    if (!keys.length) return;
+    const html = keys.map(k =>
+      `<img class="photo-thumb" src="${photos[k]}" onclick="openEntryLightbox('${entryId}','${k}',\`${photos[k]}\`)" alt="foto"/>`
+    ).join('');
+    const t = document.getElementById('entry-photos-' + entryId);
+    if (t) t.innerHTML = html;
+    const c = document.getElementById('entry-photos-card-' + entryId);
+    if (c) c.innerHTML = html;
+  } catch(e) { /* silent */ }
+}
+
+function openEntryLightbox(entryId, key, src) {
+  lightboxPhotoKey = key;
+  // Re-use the main lightbox but set delete to entry path
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox-del-btn').onclick = () => deleteEntryPhoto(entryId, key);
+  document.getElementById('photo-lightbox').classList.remove('hidden');
+}
+
+async function deleteEntryPhoto(entryId, key) {
+  const eKey = 'entry_' + entryId;
+  try {
+    await dbRef(`entryPhotos/${currentUser}/${eKey}/${key}`).remove();
+    document.getElementById('photo-lightbox').classList.add('hidden');
+    // Check if any photos remain
+    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
+    if (!snap.exists() || !Object.keys(snap.val()).length) {
+      const e = entries.find(x=>x.id===entryId);
+      if (e) { e.hasPhotos = false; scheduleSave(); }
+    }
+    await renderEntryPhotoGallery(entryId);
+    renderEntries();
+    showToast('Foto eliminada');
+  } catch(err) { showToast('⚠ Error', true); }
 }
 
 // ══════════════════════════════════════════════════
