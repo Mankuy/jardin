@@ -354,8 +354,17 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
       </div>
     </div>
     <div class="auth-footer">Tus datos se guardan en tu propia base de datos Firebase.</div>
+    <div class="auth-footer" id="auth-domain-info" style="font-size:.6rem;margin-top:4px;opacity:.5"></div>
   </div>
 </div>
+
+<script>
+// Show domain for debugging
+document.addEventListener('DOMContentLoaded',()=>{
+  const el=document.getElementById('auth-domain-info');
+  if(el) el.textContent='Dominio: '+(location.hostname||'file://local');
+});
+</script>
 
 <!-- ═══ APP ═══ -->
 <div id="app">
@@ -776,8 +785,25 @@ async function doLogin(){
     
     setBtnLoading('login-btn','login-btn-text',true,'Ingresando…');
     
-    const hash=await sha256(password+username);
-    const stored=await dbGet(`users/${username}/hash`);
+    let hash;
+    try { hash=await sha256(password+username); }
+    catch(he) { errEl.textContent='Error de encriptación: '+he.message; setBtnLoading('login-btn','login-btn-text',false,'Ingresar →'); return; }
+    
+    let stored;
+    try { stored=await dbGet(`users/${username}/hash`); }
+    catch(de) {
+      const msg = de.message||de.code||String(de);
+      if(msg.includes('PERMISSION_DENIED')||msg.includes('permission')) {
+        errEl.textContent='⚠ Firebase bloqueó el acceso. Si estás en GitHub Pages, revisá las reglas de la base de datos en Firebase Console.';
+      } else if(msg.includes('fetch')||msg.includes('network')||msg.includes('Failed')) {
+        errEl.textContent='⚠ No se pudo conectar a Firebase. Revisá tu conexión a internet.';
+      } else {
+        errEl.textContent='Error Firebase: '+msg;
+      }
+      setBtnLoading('login-btn','login-btn-text',false,'Ingresar →');
+      console.error('[Jardín] Firebase error en login:', de);
+      return;
+    }
     
     if(!stored||stored!==hash){
         errEl.textContent='Usuario o contraseña incorrectos.';
@@ -789,7 +815,10 @@ async function doLogin(){
     localStorage.setItem('jd_session',username);
     bootApp(username,data);
   } catch(e) {
-    document.getElementById('login-error').textContent='Error de conexión: '+e.message;
+    const errEl=document.getElementById('login-error');
+    const msg=e.message||e.code||String(e);
+    errEl.textContent='Error: '+msg;
+    console.error('[Jardín] Error completo en login:', e);
   } finally {
     setBtnLoading('login-btn','login-btn-text',false,'Ingresar →');
   }
@@ -824,7 +853,14 @@ async function doRegister(){
     localStorage.setItem('jd_session',username);
     bootApp(username,initData);
   } catch(e) {
-    document.getElementById('reg-error').textContent='Error de conexión: '+e.message;
+    const msg=e.message||e.code||String(e);
+    const errEl=document.getElementById('reg-error');
+    if(msg.includes('PERMISSION_DENIED')||msg.includes('permission')) {
+      errEl.textContent='⚠ Firebase bloqueó el acceso. Si usás GitHub Pages, revisá las reglas de Firebase.';
+    } else {
+      errEl.textContent='Error: '+msg;
+    }
+    console.error('[Jardín] Error en registro:', e);
   } finally {
     setBtnLoading('reg-btn','reg-btn-text',false,'Crear cuenta →');
   }
@@ -2048,6 +2084,25 @@ window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => document.getElementById('login-pass').focus(), 300);
   }
   document.getElementById('auth-screen').classList.remove('hidden');
+
+  // Test conexión Firebase al cargar
+  setTimeout(async () => {
+    try {
+      await firebase.database().ref('.info/connected').get();
+      console.log('[Jardín] ✅ Firebase conectado desde: ' + location.hostname);
+    } catch(e) {
+      console.error('[Jardín] ❌ Firebase error:', e);
+      const banner = document.createElement('div');
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:10px 16px;background:#e07a5f;color:#fff;font-family:monospace;font-size:12px;z-index:99999;text-align:center;line-height:1.5;';
+      const msg = e.message||e.code||String(e);
+      if(msg.includes('PERMISSION_DENIED')||msg.includes('permission')) {
+        banner.innerHTML = '⚠ Firebase bloqueó este dominio (<b>'+location.hostname+'</b>). Abrí Firebase Console → Realtime Database → Reglas → cambiá a:<br><code style="background:rgba(0,0,0,.3);padding:2px 6px;border-radius:3px">{"rules":{".read":true,".write":true}}</code> → Publicar';
+      } else {
+        banner.innerHTML = '⚠ Error conectando a Firebase: ' + msg + ' (dominio: '+location.hostname+')';
+      }
+      document.body.prepend(banner);
+    }
+  }, 1500);
 });
 </script>
 </body>
