@@ -274,6 +274,12 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
   .toast{right:50%;transform:translate(50%, 10px);text-align:center;width:max-content;max-width:90vw;}
   .toast.show{transform:translate(50%, 0);}
   .acc-header{padding:1rem;}
+  /* Touch targets mínimos para móvil */
+  .btn-plant-action{min-height:34px;padding:.45rem .8rem;font-size:.69rem;}
+  .filter-btn{min-height:34px;padding:.38rem .8rem;font-size:.68rem;}
+  .btn-sm{min-height:32px;padding:.38rem .65rem;}
+  .entry-card-actions button{min-height:38px;}
+  .tab-btn{padding:1rem 1.1rem;}
 }
 @media(min-width:641px){
   .entry-cards{display:none;}
@@ -297,10 +303,13 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
 .photo-thumb:hover{border-color:var(--accent);transform:scale(1.05);}
 .photo-add-btn{width:64px;height:64px;border-radius:4px;border:1px dashed var(--border);background:none;color:var(--text3);font-size:1.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .2s,color .2s;}
 .photo-add-btn:hover{border-color:var(--accent);color:var(--accent);}
-.entry-photos-inline{padding:.4rem 0 .1rem;gap:.4rem;}
-.entry-photos-inline .photo-thumb{width:56px;height:56px;}
-.entry-photos-row td{padding:.2rem 1rem .6rem!important;background:var(--bg3);}
-.entry-photos-row .photo-gallery{margin-top:0;}
+/* ── Entry photo strip (registro) ── */
+.entry-photos-row td{padding:.2rem .85rem .55rem!important;border-bottom:1px solid rgba(45,61,39,.4);}
+.entry-photos-strip{display:flex;align-items:center;gap:.55rem;background:rgba(127,184,90,.04);border:1px solid rgba(127,184,90,.12);border-radius:4px;padding:.35rem .65rem .35rem .5rem;}
+.eps-icon{font-size:.7rem;color:var(--accent);opacity:.7;flex-shrink:0;user-select:none;}
+.eps-gallery{display:flex;flex-wrap:wrap;gap:.35rem;}
+.eps-gallery .photo-thumb{width:46px;height:46px;border-radius:5px;}
+.entry-photos-card-strip{margin-top:.5rem;}
 .photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;}
 .photo-lightbox.hidden{display:none;}
 .photo-lightbox img{max-width:95vw;max-height:90vh;border-radius:4px;object-fit:contain;}
@@ -699,7 +708,8 @@ document.addEventListener('DOMContentLoaded',()=>{
         <input type="file" id="mp-photo-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this.files)"/>
       </label>
       <span id="mp-photo-uploading" style="font-size:.7rem;color:var(--accent2);align-self:center;display:none">⏳ Subiendo…</span>
-    </div><button class="btn-cancel" onclick="closeModal('modal-plant')">Cancelar</button><button class="btn-confirm" onclick="confirmPlant()">Guardar</button></div>
+    </div>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-plant')">Cancelar</button><button class="btn-confirm" onclick="confirmPlant()">Guardar</button></div>
   </div>
 </div>
 
@@ -1066,9 +1076,12 @@ function showTab(name,btn){
   if(name==='resumen')  renderResumen();
 }
 
+let _toastTimer = null;
 function showToast(msg,err){
   const t=document.getElementById('toast');t.textContent=msg;t.style.background=err?'var(--accent3)':'var(--accent)';
-  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
 function closeModal(id){document.getElementById(id).classList.remove('open');if(id==='modal-seco')editingEntryId=null;}
@@ -1245,9 +1258,9 @@ function stageEntryPhotos(files) {
     const img = document.createElement('img');
     img.className = 'photo-thumb';
     img.src = b64;
-    const idx = stagedEntryPhotos.length - 1;
     img.onclick = () => {
-      stagedEntryPhotos.splice(idx, 1);
+      const i = stagedEntryPhotos.indexOf(b64);
+      if (i !== -1) stagedEntryPhotos.splice(i, 1);
       img.remove();
       countEl.textContent = stagedEntryPhotos.length ? `${stagedEntryPhotos.length} foto${stagedEntryPhotos.length>1?'s':''}` : '';
       countEl.style.display = stagedEntryPhotos.length ? 'inline' : 'none';
@@ -1366,7 +1379,7 @@ function renderEntries(){
       aH=`<div class="action-cell">${photoIcon}<button class="btn-update" style="background:rgba(127,184,90,.07);border-color:rgba(127,184,90,.25);color:var(--accent)" onclick="openSecoModal(${e.id})">📷 Editar</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
     }
     const photoTrCols = cdiv>1 ? 7 : 6;
-    const photoTableRow = e.hasPhotos ? `<tr class="entry-photos-row"><td colspan="${photoTrCols}"><div id="entry-photos-${e.id}" class="photo-gallery entry-photos-inline"></div></td></tr>` : '';
+    const photoTableRow = e.hasPhotos ? `<tr class="entry-photos-row"><td colspan="${photoTrCols}"><div class="entry-photos-strip"><span class="eps-icon">📷</span><div id="entry-photos-${e.id}" class="eps-gallery"></div></div></td></tr>` : '';
     const tableRow=`<tr><td>${d}</td><td><span class="plant-badge"><span class="plant-badge-dot" style="background:${p.color}"></span>${e.planta}</span></td><td>${wH}</td>${cdiv>1?`<td>${wDiv}</td>`:''}<td>${sH}</td><td style="font-size:.68rem;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.nota||''}">${e.nota||'—'}</td><td>${aH}</td></tr>${photoTableRow}`;
     const card=`<div class="entry-card">
       <div class="entry-card-top">
@@ -1375,7 +1388,7 @@ function renderEntries(){
       </div>
       <div class="entry-card-mid"><div>${cardWeight}</div>${sH}</div>
       ${e.nota?`<div style="font-size:.68rem;color:var(--text3);margin-top:.4rem">${e.nota}</div>`:''}
-      ${e.hasPhotos?`<div id="entry-photos-card-${e.id}" class="photo-gallery entry-photos-inline"></div>`:''}
+      ${e.hasPhotos?`<div class="entry-photos-strip entry-photos-card-strip"><span class="eps-icon">📷</span><div id="entry-photos-card-${e.id}" class="eps-gallery"></div></div>`:''}
       <div class="entry-card-actions">${cardActions}</div>
     </div>`;
     return {tableRow, card};
@@ -2534,18 +2547,4 @@ window.addEventListener('DOMContentLoaded', () => {
       clearTimeout(timeout);
       console.error('[Jardín] ❌ Firebase error:', err);
       const banner = document.createElement('div');
-      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:10px 16px;background:#e07a5f;color:#fff;font-family:monospace;font-size:12px;z-index:99999;text-align:center;line-height:1.5;cursor:pointer;';
-      const msg = err.message||err.code||String(err);
-      if(msg.includes('PERMISSION_DENIED')||msg.includes('permission')) {
-        banner.innerHTML = '⚠ Firebase bloqueó este dominio (<b>'+location.hostname+'</b>). Abrí Firebase Console → Realtime Database → Reglas → cambiá a: <code style="background:rgba(0,0,0,.3);padding:2px 6px;border-radius:3px">{"rules":{".read":true,".write":true}}</code> → Publicar <span style="margin-left:1rem;opacity:.7">[×]</span>';
-      } else {
-        banner.innerHTML = '⚠ Error conectando a Firebase: ' + msg + ' (dominio: '+location.hostname+') <span style="margin-left:1rem;opacity:.7">[×]</span>';
-      }
-      banner.onclick = () => banner.remove();
-      document.body.prepend(banner);
-    });
-  }, 1000);
-});
-</script>
-</body>
-</html>
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:10px 16px;background:#e07a5f;col
