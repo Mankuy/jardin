@@ -2233,26 +2233,43 @@ function saveStrainCache(name, data) {
   } catch {}
 }
 
+// ── Promise.any polyfill (compatible con todos los browsers) ──
+function _promiseAny(promises) {
+  return new Promise(function(resolve, reject) {
+    var remaining = promises.length;
+    if (!remaining) { reject(new Error('No promises')); return; }
+    promises.forEach(function(p) {
+      Promise.resolve(p).then(resolve).catch(function() {
+        if (!--remaining) reject(new Error('All failed'));
+      });
+    });
+  });
+}
+
 // ── IA paralela: lanza todos los modelos a la vez, gana el primero ──
 async function aiFetchRemote(prompt) {
   const models = ['gemini','openai','mistral','llama','openai-large'];
   const tryModel = async (model) => {
-    const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
-      + '?model=' + model + '&json=true&seed=' + Math.floor(Math.random()*99999)
-      + '&cachebust=' + Date.now();
-    const res = await fetch(url, { signal: AbortSignal.timeout(22000) });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const txt = await res.text();
-    if (!txt || !txt.includes('{')) throw new Error('Sin datos');
-    let parsed;
-    try { parsed = JSON.parse(txt); } catch {}
-    if (!parsed) try { parsed = JSON.parse(txt.replace(/```json[\s\S]*?```|```/g,'').trim()); } catch {}
-    if (!parsed) { const s=txt.indexOf('{'),e=txt.lastIndexOf('}'); if(s!==-1&&e!==-1) parsed=JSON.parse(txt.slice(s,e+1)); }
-    if (!parsed) throw new Error('JSON inválido');
-    return parsed;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 22000);
+    try {
+      const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
+        + '?model=' + model + '&json=true&seed=' + Math.floor(Math.random()*99999)
+        + '&cachebust=' + Date.now();
+      const res = await fetch(url, { signal: ctrl.signal });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const txt = await res.text();
+      if (!txt || !txt.includes('{')) throw new Error('Sin datos');
+      let parsed;
+      try { parsed = JSON.parse(txt); } catch(e) {}
+      if (!parsed) { const s=txt.indexOf('{'),e=txt.lastIndexOf('}'); if(s!==-1&&e!==-1) try { parsed=JSON.parse(txt.slice(s,e+1)); } catch(e) {} }
+      if (!parsed) throw new Error('JSON inválido');
+      return parsed;
+    } finally { clearTimeout(t); }
   };
-  // Promise.any: resuelve con el primero que tenga éxito
-  return Promise.any(models.map(m => tryModel(m))).catch(() => { throw new Error('Servicio no disponible'); });
+  const anyFn = (typeof Promise.any === 'function') ? Promise.any.bind(Promise) : _promiseAny;
+  return anyFn(models.map(function(m) { return tryModel(m); }))
+    .catch(function() { throw new Error('Servicio no disponible'); });
 }
 
 async function aiAutofill() {
@@ -2283,10 +2300,9 @@ async function aiAutofill() {
       } else {
         // 3. IA remota paralela (todos los modelos a la vez)
         btnTxt.innerHTML = '⏳ Consultando IA…';
-        const p = `You are a cannabis genetics expert. Return ONLY a valid JSON object for the strain "${strainName}"${source?` by ${source}`:''}.
-All text fields in Spanish (except proper names/brand names). JSON schema:
-{"nombre":"${strainName}","sativa":50,"indica":50,"thc":"20%","cbd":"<1%","floracion":"8-9 semanas","origen":"Parent A x Parent B","breeder":"Seed Bank","aroma":"descripción aroma","gusto":"descripción gusto","efecto":"descripción efecto","colorHoja":"verde oscuro","perfil":"perfil de cultivo 2-3 oraciones"}
-sativa+indica=100. If unknown return best estimate. Return JSON only, no markdown.`;
+        const sourceStr = source ? ' by ' + source : '';
+        const schemaEx = '{"nombre":"' + strainName + '","sativa":50,"indica":50,"thc":"20%","cbd":"menor 1%","floracion":"8-9 semanas","origen":"Parent A x Parent B","breeder":"Seed Bank","aroma":"descripcion aroma","gusto":"descripcion gusto","efecto":"descripcion efecto","colorHoja":"verde oscuro","perfil":"perfil cultivo 2-3 oraciones"}';
+        const p = 'You are a cannabis genetics expert. Return ONLY valid JSON for the strain "' + strainName + '"' + sourceStr + '. All text in Spanish except proper names. Schema: ' + schemaEx + ' sativa+indica=100. Return JSON only, no markdown.';
         parsed = await aiFetchRemote(p);
         if (parsed && !parsed.error) { saveStrainCache(strainName, parsed); origin = 'IA'; }
       }
@@ -2547,4 +2563,18 @@ window.addEventListener('DOMContentLoaded', () => {
       clearTimeout(timeout);
       console.error('[Jardín] ❌ Firebase error:', err);
       const banner = document.createElement('div');
-      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:10px 16px;background:#e07a5f;col
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:10px 16px;background:#e07a5f;color:#fff;font-family:monospace;font-size:12px;z-index:99999;text-align:center;line-height:1.5;cursor:pointer;';
+      const msg = err.message||err.code||String(err);
+      if(msg.includes('PERMISSION_DENIED')||msg.includes('permission')) {
+        banner.innerHTML = '⚠ Firebase bloqueó este dominio (<b>'+location.hostname+'</b>). Abrí Firebase Console → Realtime Database → Reglas → cambiá a: <code style="background:rgba(0,0,0,.3);padding:2px 6px;border-radius:3px">{"rules":{".read":true,".write":true}}</code> → Publicar <span style="margin-left:1rem;opacity:.7">[×]</span>';
+      } else {
+        banner.innerHTML = '⚠ Error conectando a Firebase: ' + msg + ' (dominio: '+location.hostname+') <span style="margin-left:1rem;opacity:.7">[×]</span>';
+      }
+      banner.onclick = () => banner.remove();
+      document.body.prepend(banner);
+    });
+  }, 1000);
+});
+</script>
+</body>
+</html>
