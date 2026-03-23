@@ -5,6 +5,2106 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Jardín — Registro de Cosecha</title>
 <!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" onerror="document.title='⚠ Error cargando Firebase'"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js" onerror="document.title='⚠ Error cargando Firebase'"></script>
+<!-- CryptoJS para garantizar compatibilidad de encriptación de contraseñas (soluciona error en PC) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<!-- Fuentes -->
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;1,6..72,300&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f130e;--bg2:#161c14;--bg3:#1e2819;--card:#1a2116;--border:#2d3d27;--accent:#7fb85a;--accent2:#c8a84b;--accent3:#e07a5f;--text:#d4dcc8;--text2:#8fa07e;--text3:#5a6b50;--white:#f0f4eb;--rebel:#5abbc8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;
+  background-image:radial-gradient(ellipse at 20% 0%,rgba(127,184,90,.07) 0%,transparent 55%),radial-gradient(ellipse at 80% 100%,rgba(200,168,75,.05) 0%,transparent 55%);}
+
+/* ═══ SPLASH & AUTH ═══ */
+#splash-screen{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+  background-image:radial-gradient(ellipse at 30% 30%,rgba(127,184,90,.1) 0%,transparent 55%),
+    radial-gradient(ellipse at 70% 70%,rgba(200,168,75,.07) 0%,transparent 55%);}
+#splash-screen.hidden{display:none;}
+.splash-inner{display:flex;flex-direction:column;align-items:center;gap:1.2rem;
+  animation:wFadeUp .8s cubic-bezier(.2,0,.2,1) both;}
+.splash-title{font-family:'Playfair Display',serif;font-size:4rem;color:var(--white);letter-spacing:-.03em;line-height:1;text-align:center;}
+.splash-sub{font-size:.72rem;color:var(--text3);letter-spacing:.25em;text-transform:uppercase;text-align:center;}
+.splash-divider{width:36px;height:1px;background:var(--border);margin:.1rem auto;}
+.splash-user{font-size:.82rem;color:var(--accent);letter-spacing:.08em;margin-top:.2rem;}
+.splash-enter{margin-top:2.5rem;padding:.9rem 3rem;background:var(--accent);color:var(--bg);border:none;
+  font-family:'DM Mono',monospace;font-size:.82rem;letter-spacing:.14em;text-transform:uppercase;
+  cursor:pointer;border-radius:3px;font-weight:500;
+  animation:wFadeUp .8s .25s cubic-bezier(.2,0,.2,1) both;
+  transition:background .2s,transform .1s;}
+.splash-enter:hover{background:#90cc66;}
+.splash-enter:active{transform:scale(.97);}
+
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:1.5rem;z-index:8000;overflow-y:auto;
+  background:var(--bg);background-image:radial-gradient(ellipse at 30% 20%,rgba(127,184,90,.08) 0%,transparent 55%),radial-gradient(ellipse at 70% 80%,rgba(200,168,75,.06) 0%,transparent 55%);}
+.screen.hidden{display:none;}
+.screen-box{width:100%;max-width:420px;margin:auto;position:relative;z-index:10;}
+.auth-logo{text-align:center;margin-bottom:2rem;}
+.auth-logo h1{font-family:'Playfair Display',serif;font-size:3rem;color:var(--white);letter-spacing:-.02em;line-height:1;}
+.auth-logo p{font-size:.7rem;color:var(--text3);letter-spacing:.2em;text-transform:uppercase;margin-top:.4rem;}
+.auth-card{background:var(--card);border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);}
+.auth-tab{flex:1;padding:.85rem;background:none;border:none;color:var(--text3);font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s;border-bottom:2px solid transparent;}
+.auth-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(127,184,90,.04);}
+.auth-tab:hover:not(.active){color:var(--text2);}
+.auth-form{padding:1.8rem;}
+.auth-form .form-group{margin-bottom:1.1rem;}
+.auth-form label{display:block;font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:.4rem;}
+.auth-form input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.9rem;padding:.7rem 1rem;border-radius:3px;outline:none;transition:border-color .2s;}
+.auth-form input:focus{border-color:var(--accent);}
+.auth-form input::placeholder{color:var(--text3);}
+.auth-error{font-size:.72rem;color:var(--accent3);margin-bottom:.8rem;min-height:1.1rem;display:block;line-height:1.5;}
+.btn-auth{width:100%;padding:.85rem;background:var(--accent);color:var(--bg);border:none;font-family:'DM Mono',monospace;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:500;margin-top:.4rem;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:.6rem;}
+.btn-auth:hover:not(:disabled){background:#90cc66;}
+.btn-auth:disabled{opacity:.5;cursor:not-allowed;}
+.auth-footer{padding:.9rem 1.8rem;border-top:1px solid var(--border);font-size:.65rem;color:var(--text3);text-align:center;}
+
+@keyframes wFadeUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+@keyframes leafSway{0%,100%{transform:rotate(-3deg);}50%{transform:rotate(3deg);}}
+.leaf-sway{transform-origin:80px 90px;animation:leafSway 4s ease-in-out infinite;}
+
+/* ═══ APP ═══ */
+#app{display:none;}
+header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+.logo-block h1{font-family:'Playfair Display',serif;font-size:2.4rem;color:var(--white);letter-spacing:-.02em;line-height:1;}
+.logo-block p{font-size:.68rem;color:var(--text3);letter-spacing:.18em;text-transform:uppercase;margin-top:.25rem;}
+.header-right{display:flex;align-items:flex-end;gap:1.5rem;flex-wrap:wrap;}
+.header-totals{display:flex;gap:1.8rem;align-items:flex-end;flex-wrap:wrap;}
+.hstat .label{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:.2rem;}
+.hstat .value{font-family:'Playfair Display',serif;font-size:1.8rem;line-height:1;}
+.hstat .unit{font-size:.82rem;color:var(--text2);margin-left:.12rem;}
+.hstat.dry .value{color:var(--accent);}
+.hstat.drying .value{color:var(--accent2);}
+.hstat.count .value{color:var(--text2);font-size:1.4rem;}
+.user-block{display:flex;align-items:center;gap:.7rem;padding:.5rem .8rem;background:var(--bg3);border:1px solid var(--border);border-radius:4px;}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:.75rem;color:var(--bg);font-weight:500;flex-shrink:0;}
+.user-name{font-size:.72rem;color:var(--text2);}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);transition:background .3s;flex-shrink:0;}
+.sync-dot.saving{background:var(--accent2);animation:pulse 1s infinite;}
+.sync-dot.ok{background:var(--accent);}
+.sync-dot.error{background:var(--accent3);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.btn-sm{background:none;border:1px solid var(--border);color:var(--text3);font-family:'DM Mono',monospace;font-size:.62rem;padding:.22rem .55rem;border-radius:2px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn-sm:hover{border-color:var(--accent3);color:var(--accent3);}
+.nav-tabs{display:flex;padding:0 3rem;border-bottom:1px solid var(--border);background:var(--bg2);}
+.tab-btn{padding:.9rem 1.4rem;background:none;border:none;color:var(--text3);font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.tab-btn:hover{color:var(--text2);}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.section{display:none;padding:2.5rem 3rem;}
+.section.active{display:block;}
+
+/* ═══ ACCORDIONS (Groups & Stats) ═══ */
+.acc-box{background:var(--card);border:1px solid var(--border);border-radius:4px;margin-bottom:1.2rem;overflow:hidden;transition:border-color .2s;}
+.acc-box:hover{border-color:rgba(127,184,90,.3);}
+.acc-header{padding:1.1rem 1.4rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;transition:background .15s;gap:1rem;flex-wrap:wrap;}
+.acc-header:hover{background:rgba(127,184,90,.04);}
+.acc-header.open{border-bottom:1px solid var(--border);background:rgba(127,184,90,.02);}
+.acc-arrow{transition:transform .3s ease;display:inline-block;font-size:.8rem;}
+.acc-header.open .acc-arrow{transform:rotate(180deg);}
+.acc-content{max-height:0;padding:0 1.4rem;overflow:hidden;transition:max-height .4s ease, padding .4s ease;}
+.acc-content.open{max-height:5000px;padding:1.4rem;}
+
+/* ═══ GRID STATS ═══ */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:1rem;}
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1.2rem;position:relative;overflow:hidden;}
+.s-label{font-size:.63rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:.5rem;}
+.s-val{font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--white);line-height:1;}
+.s-unit{font-size:.8rem;color:var(--text2);}
+.s-sub{font-size:.68rem;color:var(--text3);margin-top:.3rem;}
+.mini-stats{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.8rem;margin-bottom:1.4rem;}
+.mini-stats .stat-card{padding:.9rem 1rem;}
+.mini-stats .s-label{font-size:.58rem;margin-bottom:.3rem;}
+.mini-stats .s-val{font-size:1.4rem;}
+
+/* Form, Inputs, etc */
+.drying-banner{background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.25);border-radius:4px;padding:.9rem 1.2rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:.8rem;}
+.drying-banner.hidden{display:none;}
+.db-title{font-size:.78rem;color:var(--accent2);}
+.db-sub{font-size:.68rem;color:var(--text3);margin-top:.15rem;}
+.log-section{display:grid;grid-template-columns:1fr 1.5fr;gap:2rem;align-items:start;}
+@media(max-width:900px){.log-section{grid-template-columns:1fr;}}
+.form-block{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:1.5rem;}
+.form-block h2{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--white);margin-bottom:1.2rem;padding-bottom:.8rem;border-bottom:1px solid var(--border);}
+.form-group{margin-bottom:1rem;}
+.form-group label{display:block;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:.4rem;}
+.form-group input,.form-group select,.form-group textarea{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.88rem;padding:.65rem .9rem;border-radius:3px;outline:none;transition:border-color .2s;}
+.form-group textarea{resize:vertical;min-height:70px;line-height:1.5;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent);}
+.form-group select option{background:var(--bg3);}
+.form-group .hint{font-size:.63rem;color:var(--text3);margin-top:.25rem;}
+.toggle-row{display:flex;align-items:center;gap:.8rem;padding:.6rem 0 .2rem;}
+.toggle-label{font-size:.72rem;color:var(--text2);flex:1;}
+.toggle{position:relative;width:38px;height:20px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:var(--bg3);border:1px solid var(--border);border-radius:20px;cursor:pointer;transition:all .2s;}
+.toggle-slider::before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;background:var(--text3);border-radius:50%;transition:all .2s;}
+.toggle input:checked+.toggle-slider{background:rgba(127,184,90,.15);border-color:var(--accent);}
+.toggle input:checked+.toggle-slider::before{transform:translateX(18px);background:var(--accent);}
+
+.btn-add{width:100%;padding:.8rem;background:var(--accent);color:var(--bg);border:none;font-family:'DM Mono',monospace;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;margin-top:.8rem;font-weight:500;transition:background .2s,transform .1s;}
+.btn-add:hover{background:#90cc66;}
+.btn-add:active{transform:scale(.98);}
+
+.entries-block{background:var(--card);border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+.entries-header{padding:1rem 1.2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.5rem;}
+.entries-header h2{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--white);}
+.entries-filter{display:flex;gap:.4rem;}
+.filter-btn{background:none;border:1px solid var(--border);color:var(--text3);font-family:'DM Mono',monospace;font-size:.63rem;padding:.22rem .55rem;border-radius:2px;cursor:pointer;letter-spacing:.08em;transition:all .15s;}
+.filter-btn.active,.filter-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+.entries-table{width:100%;border-collapse:collapse;font-size:.78rem;}
+.entries-table th{text-align:left;padding:.55rem .85rem;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg2);}
+.entries-table td{padding:.65rem .85rem;border-bottom:1px solid rgba(45,61,39,.4);color:var(--text);vertical-align:middle;}
+.entries-table tr:hover td{background:rgba(127,184,90,.02);}
+.plant-badge{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;}
+.plant-badge-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;display:inline-block;}
+.status-badge{display:inline-flex;align-items:center;gap:.3rem;font-size:.63rem;padding:.18rem .5rem;border-radius:2px;letter-spacing:.05em;white-space:nowrap;}
+.status-badge.secando{background:rgba(200,168,75,.12);color:var(--accent2);border:1px solid rgba(200,168,75,.2);}
+.status-badge.seco{background:rgba(127,184,90,.1);color:var(--accent);border:1px solid rgba(127,184,90,.2);}
+.w-dry{color:var(--accent);font-weight:500;}
+.w-drying{color:var(--accent2);}
+.w-sub{font-size:.65rem;color:var(--text3);margin-top:.12rem;}
+
+.btn-outline{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem .9rem;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s;white-space:nowrap;}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent);}
+.btn-outline.green{border-color:rgba(127,184,90,.35);color:var(--accent);background:rgba(127,184,90,.07);}
+.btn-outline.green:hover{background:rgba(127,184,90,.15);}
+.btn-outline.danger:hover{border-color:var(--accent3);color:var(--accent3);background:rgba(224,122,95,.08);}
+
+.action-cell { display:flex; gap:.5rem; justify-content:flex-end; align-items:center; }
+.btn-update { background:rgba(200,168,75,.12); border:1px solid rgba(200,168,75,.3); color:var(--accent2); font-family:'DM Mono',monospace; font-size:.7rem; padding:.4rem .7rem; border-radius:3px; cursor:pointer; transition:all .15s; letter-spacing:.05em; white-space:nowrap; }
+.btn-update:hover { background:rgba(200,168,75,.2); }
+.btn-del { background:transparent; border:1px solid var(--border); color:var(--accent3); font-family:'DM Mono',monospace; font-size:.7rem; padding:.4rem .7rem; border-radius:3px; cursor:pointer; transition:all .15s; letter-spacing:.05em; white-space:nowrap; }
+.btn-del:hover { border-color:var(--accent3); background:rgba(224,122,95,.08); }
+
+/* Plantas Grid */
+.plants-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1rem;}
+.plant-card{background:var(--bg3);border:1px solid var(--border);border-radius:4px;overflow:hidden;transition:border-color .2s;}
+.plant-card:hover{border-color:rgba(127,184,90,.3);}
+.plant-header{padding:.9rem 1.1rem .75rem;display:flex;align-items:center;gap:.75rem;border-bottom:1px solid var(--border);transition:background .15s;}
+.plant-header:hover{background:rgba(127,184,90,.04);}
+.plant-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.plant-name{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--white);}
+.plant-totals{margin-left:auto;text-align:right;}
+.pt-dry{font-size:.76rem;color:var(--accent);}
+.pt-drying{font-size:.65rem;color:var(--accent2);margin-top:.1rem;}
+.plant-info{padding:.9rem 1.1rem;}
+.sativa-indica-bar{display:flex;height:3px;border-radius:2px;overflow:hidden;margin:.5rem 0 .35rem;}
+.si-sativa{background:#5abbc8;}
+.si-indica{background:#8a7eb8;}
+.si-label{display:flex;justify-content:space-between;font-size:.6rem;}
+.plant-info-row{display:flex;gap:.5rem;margin-bottom:.28rem;font-size:.71rem;}
+.plant-info-row .key{color:var(--text3);min-width:78px;flex-shrink:0;}
+.plant-info-row .val{color:var(--text);line-height:1.5;}
+.plant-desc{font-family:'Newsreader',serif;font-style:italic;font-size:.8rem;color:var(--text2);line-height:1.6;margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border);}
+.plant-footer{padding:.6rem 1.1rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:.4rem;}
+.btn-plant-action{background:none;border:1px solid var(--border);color:var(--text3);font-family:'DM Mono',monospace;font-size:.63rem;padding:.22rem .55rem;border-radius:2px;cursor:pointer;transition:all .15s;}
+.btn-plant-action:hover{border-color:var(--accent);color:var(--accent);}
+.btn-plant-action.del:hover{border-color:var(--accent3);color:var(--accent3);}
+
+/* Modals */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.76);display:flex;align-items:center;justify-content:center;z-index:9500;opacity:0;pointer-events:none;transition:opacity .2s;padding:1rem;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:1.8rem;width:100%;max-width:460px;transform:translateY(12px);transition:transform .25s;max-height:90vh;overflow-y:auto;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal h3{font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--white);margin-bottom:.25rem;}
+.modal-sub{font-size:.7rem;color:var(--text3);margin-bottom:1.3rem;line-height:1.7;}
+.modal-btns{display:flex;gap:.8rem;margin-top:1.2rem;}
+.btn-confirm{flex:1;padding:.75rem;background:var(--accent);color:var(--bg);border:none;font-family:'DM Mono',monospace;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:500;transition:background .2s;}
+.btn-confirm:hover{background:#90cc66;}
+.btn-cancel{flex:1;padding:.75rem;background:none;color:var(--text2);border:1px solid var(--border);font-family:'DM Mono',monospace;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .15s;}
+.btn-cancel:hover{border-color:var(--text2);}
+.sect-div{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin:1.2rem 0 .8rem;padding-bottom:.4rem;border-bottom:1px solid var(--border);}
+.color-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.4rem;}
+.color-swatch{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s;}
+.color-swatch.selected{border-color:var(--white);transform:scale(1.15);}
+.range-row{display:flex;align-items:center;gap:.8rem;}
+.range-row input[type=range]{flex:1;accent-color:var(--accent);}
+.confirm-danger .btn-confirm{background:var(--accent3);}
+.confirm-danger .btn-confirm:hover{background:#f08070;}
+
+/* Bar charts in Resumen */
+.legend{display:flex;gap:1.5rem;margin-bottom:1.2rem;font-size:.68rem;color:var(--text3);}
+.legend span{display:flex;align-items:center;gap:.4rem;}
+.bar-row{margin-bottom:1.1rem;}
+.bar-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;}
+.bar-name{font-size:.72rem;color:var(--text2);display:flex;align-items:center;gap:.4rem;}
+.bar-vals{font-size:.68rem;display:flex;gap:1rem;}
+.bv-dry{color:var(--accent);}
+.bv-drying{color:var(--accent2);}
+.bar-track{height:5px;background:var(--bg3);border-radius:3px;display:flex;overflow:hidden;}
+.bar-fill-dry{height:100%;transition:width .6s cubic-bezier(.4,0,.2,1);}
+.bar-fill-drying{height:100%;opacity:.45;transition:width .6s cubic-bezier(.4,0,.2,1);}
+
+/* Toasts / Undo */
+.undo-toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(50px);
+  background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+  padding:.8rem 1.2rem;display:flex;align-items:center;gap:1rem;
+  font-size:.78rem;color:var(--text);z-index:9999;opacity:0;pointer-events:none;
+  transition:all .3s cubic-bezier(.2,0,.2,1);box-shadow:0 10px 30px rgba(0,0,0,.6);
+  max-width:90vw;width:max-content;flex-wrap:wrap;justify-content:center;}
+.undo-toast.show{opacity:1;pointer-events:all;transform:translateX(-50%) translateY(0);}
+.undo-toast-msg{color:var(--text2);}
+.undo-btn{background:var(--accent);border:none;color:var(--bg);font-family:'DM Mono',monospace;
+  font-size:.72rem;padding:.35rem .8rem;border-radius:3px;cursor:pointer;font-weight:500;
+  letter-spacing:.08em;transition:background .15s;}
+.undo-btn:hover{background:#90cc66;}
+
+.toast{position:fixed;bottom:2rem;right:2rem;background:var(--accent);color:var(--bg);padding:.7rem 1.2rem;border-radius:3px;font-size:.78rem;font-weight:500;opacity:0;pointer-events:none;transform:translateY(10px);transition:all .3s;z-index:9999;}
+.toast.show{opacity:1;transform:translateY(0);}
+
+/* Mobile Adjustments */
+@media(max-width:640px){
+  header{padding:1.5rem 1.2rem;}
+  .logo-block h1{font-size:2rem;}
+  .nav-tabs{padding:0 1rem;overflow-x:auto;}
+  .section{padding:1.5rem 1.2rem;}
+  .hstat .value{font-size:1.4rem;}
+  .entries-table{display:none;}
+  .entry-cards{display:flex;flex-direction:column;gap:.6rem;padding:.8rem;}
+  .stats-grid{grid-template-columns:repeat(2,1fr)!important;}
+  .mini-stats{grid-template-columns:1fr 1fr!important;}
+  .toast{right:50%;transform:translate(50%, 10px);text-align:center;width:max-content;max-width:90vw;}
+  .toast.show{transform:translate(50%, 0);}
+  .acc-header{padding:1rem;}
+}
+@media(min-width:641px){
+  .entry-cards{display:none;}
+}
+.entry-card{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:.9rem 1rem;}
+.entry-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;gap:.5rem;flex-wrap:wrap;}
+.entry-card-name{display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--white);}
+.entry-card-date{font-size:.68rem;color:var(--text3);}
+.entry-card-mid{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;}
+.entry-card-weight{font-size:.85rem;}
+.entry-card-actions{display:flex;gap:.5rem;align-items:center;margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border);}
+.entry-card-actions button{flex:1;padding:.55rem;font-family:'DM Mono',monospace;font-size:.72rem;border-radius:3px;cursor:pointer;transition:all .15s;letter-spacing:.05em;}
+
+.empty-msg{padding:2rem;text-align:center;color:var(--text3);font-size:.78rem;font-style:italic;}
+
+/* ═══ PHOTOS ═══ */
+.photo-gallery{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;}
+.plant-photos-inline{margin-top:0;padding:.5rem 1.1rem;}
+.plant-photos-inline:not(:empty){border-top:1px solid var(--border);}
+.photo-thumb{width:64px;height:64px;border-radius:4px;object-fit:cover;cursor:pointer;border:1px solid var(--border);transition:border-color .2s,transform .15s;}
+.photo-thumb:hover{border-color:var(--accent);transform:scale(1.05);}
+.photo-add-btn{width:64px;height:64px;border-radius:4px;border:1px dashed var(--border);background:none;color:var(--text3);font-size:1.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .2s,color .2s;}
+.photo-add-btn:hover{border-color:var(--accent);color:var(--accent);}
+.photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;}
+.photo-lightbox.hidden{display:none;}
+.photo-lightbox img{max-width:95vw;max-height:90vh;border-radius:4px;object-fit:contain;}
+.photo-lightbox-close{position:absolute;top:1rem;right:1.2rem;background:none;border:none;color:#fff;font-size:2rem;cursor:pointer;line-height:1;}
+.photo-lightbox-del{position:absolute;bottom:1.5rem;right:1.5rem;background:var(--accent3);border:none;color:#fff;font-family:'DM Mono',monospace;font-size:.72rem;padding:.5rem 1rem;border-radius:3px;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;}
+
+</style>
+</head>
+<body>
+
+<!-- ═══ SPLASH ═══ -->
+<div id="splash-screen" class="hidden">
+  <div class="splash-inner">
+    <svg width="130" height="130" viewBox="0 0 160 160" fill="none">
+      <path d="M80 145 C80 120, 80 95, 80 70" stroke="#7fb85a" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M80 145 C70 138, 58 140, 52 136" stroke="#5a6b50" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M80 145 C90 138, 102 141, 108 137" stroke="#5a6b50" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M80 145 C75 150, 68 152, 64 150" stroke="#5a6b50" stroke-width="1.2" stroke-linecap="round"/>
+      <path class="leaf-sway" d="M80 105 C60 95, 38 88, 36 68 C36 68, 60 68, 80 105Z" fill="#7fb85a" opacity=".85"/>
+      <path class="leaf-sway" d="M80 105 C60 100, 46 82, 36 68" stroke="#5a9044" stroke-width="1" fill="none"/>
+      <path d="M80 88 C100 76, 122 68, 124 48 C124 48, 100 50, 80 88Z" fill="#90cc66" opacity=".9"/>
+      <path d="M80 88 C100 82, 114 64, 124 48" stroke="#6aaa50" stroke-width="1" fill="none"/>
+      <path d="M80 118 C65 110, 50 108, 46 96 C56 96, 72 106, 80 118Z" fill="#7fb85a" opacity=".7"/>
+      <ellipse cx="80" cy="62" rx="8" ry="12" fill="#c8a84b" opacity=".85"/>
+      <ellipse cx="80" cy="58" rx="5" ry="7" fill="#e8c860" opacity=".9"/>
+      <path d="M50 148 Q80 152 110 148" stroke="#2d3d27" stroke-width="2" stroke-linecap="round" fill="none"/>
+    </svg>
+    <div>
+      <div class="splash-title">Jardín</div>
+      <div class="splash-divider"></div>
+      <div class="splash-sub">Registro de cosecha</div>
+    </div>
+    <div class="splash-user" id="splash-user"></div>
+    <button class="splash-enter" onclick="enterAppFromSplash()">Entrar →</button>
+  </div>
+</div>
+
+<!-- ═══ AUTH ═══ -->
+<div id="auth-screen" class="screen">
+  <div class="screen-box">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" onclick="switchAuthTab('login',this)">Ingresar</button>
+        <button type="button" class="auth-tab" onclick="switchAuthTab('register',this)">Crear cuenta</button>
+      </div>
+      
+      <form id="auth-login" class="auth-form" onsubmit="event.preventDefault(); doLogin();">
+        <div class="form-group"><label>Usuario</label><input type="text" id="login-user" placeholder="tu usuario" autocomplete="username"/></div>
+        <div class="form-group"><label>Contraseña</label><input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/></div>
+        <span class="auth-error" id="login-error"></span>
+        <button type="submit" class="btn-auth" id="login-btn"><span id="login-btn-text">Ingresar →</span></button>
+      </form>
+
+      <form id="auth-register" class="auth-form" style="display:none" onsubmit="event.preventDefault(); doRegister();">
+        <div class="form-group"><label>Usuario</label><input type="text" id="reg-user" placeholder="mínimo 3 caracteres" autocomplete="username"/></div>
+        <div class="form-group"><label>Contraseña</label><input type="password" id="reg-pass" placeholder="mínimo 6 caracteres" autocomplete="new-password"/></div>
+        <div class="form-group"><label>Repetir contraseña</label><input type="password" id="reg-pass2" placeholder="••••••••" autocomplete="new-password"/></div>
+        <span class="auth-error" id="reg-error"></span>
+        <button type="submit" class="btn-auth" id="reg-btn"><span id="reg-btn-text">Crear cuenta →</span></button>
+      </form>
+    </div>
+    <div class="auth-footer">Tus datos se guardan en tu propia base de datos Firebase.</div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app">
+<header>
+  <div class="logo-block" onclick="showTabByName('inicio')" style="cursor:pointer"><h1>🌿 Jardín</h1><p>Registro de cosecha</p></div>
+  <div class="header-right">
+    <div class="header-totals">
+      <div class="hstat drying"><div class="label">Secando</div><div><span class="value" id="totalDrying">0</span><span class="unit">g</span></div></div>
+      <div class="hstat dry"><div class="label">Flor seca</div><div><span class="value" id="totalDry">0</span><span class="unit">g</span></div></div>
+      <div class="hstat count"><div class="label">Registros</div><div><span class="value" id="totalHarvests">0</span></div></div>
+    </div>
+    <div class="user-block">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <div class="user-name" id="user-name-display">—</div>
+      <div class="sync-dot" id="sync-dot"></div>
+      <button class="btn-sm" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+</header>
+<nav class="nav-tabs">
+  <button class="tab-btn active" onclick="showTab('inicio',this)">🌿 Inicio</button>
+  <button class="tab-btn"        onclick="showTab('cosechar',this)">✦ Cosechar</button>
+  <button class="tab-btn"        onclick="showTab('cosechas',this)">◈ Cosechas</button>
+  <button class="tab-btn"        onclick="showTab('resumen',this)">▤ Resumen</button>
+</nav>
+
+<!-- TAB INICIO -->
+<section class="section active" id="tab-inicio">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:2rem 0;animation:wFadeUp .7s cubic-bezier(.2,0,.2,1) both;">
+    <svg width="140" height="140" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:1.8rem">
+      <path d="M80 145 C80 120, 80 95, 80 70" stroke="#7fb85a" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M80 145 C70 138, 58 140, 52 136" stroke="#5a6b50" stroke-width="1.5" stroke-linecap="round"/>
+      <path class="leaf-sway" d="M80 105 C60 95, 38 88, 36 68 C36 68, 60 68, 80 105Z" fill="#7fb85a" opacity=".85"/>
+      <path d="M80 88 C100 76, 122 68, 124 48 C124 48, 100 50, 80 88Z" fill="#90cc66" opacity=".9"/>
+      <ellipse cx="80" cy="62" rx="8" ry="12" fill="#c8a84b" opacity=".85"/>
+      <path d="M50 148 Q80 152 110 148" stroke="#2d3d27" stroke-width="2" stroke-linecap="round" fill="none"/>
+    </svg>
+    <h1 style="font-family:'Playfair Display',serif;font-size:3.2rem;color:var(--white);letter-spacing:-.02em;line-height:1;text-align:center;margin-bottom:.5rem">Jardín</h1>
+    <div style="width:36px;height:1px;background:var(--border);margin:.5rem auto;"></div>
+    <p style="font-size:.72rem;color:var(--text3);letter-spacing:.22em;text-transform:uppercase;text-align:center;margin-bottom:.4rem">Registro de cosecha</p>
+    <p style="font-size:.82rem;color:var(--accent);letter-spacing:.06em;text-align:center;margin-bottom:2rem" id="inicio-user-label"></p>
+
+    <!-- ESTADO VACÍO (Nuevo Usuario) -->
+    <div id="inicio-welcome" style="display:none; flex-direction:column; align-items:center; gap:1.2rem; margin-bottom:2rem; background:rgba(127,184,90,.05); padding:2rem; border:1px dashed var(--accent); border-radius:6px; max-width:440px; text-align:center;">
+        <div style="font-size:.85rem; color:var(--text2); line-height:1.6;">¡Tu jardín está vacío!<br>Para empezar a registrar tus cosechas, el primer paso es agregar al menos una genética.</div>
+        <button onclick="openPlantModal()" style="padding:.9rem 1.8rem;background:var(--accent);color:var(--bg);border:none;font-family:'DM Mono',monospace;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:500;transition:background .2s;box-shadow:0 4px 15px rgba(127,184,90,.3)">🌱 Agregar primera planta</button>
+    </div>
+
+    <!-- BOTONES ESTÁNDAR (Usuario con plantas) -->
+    <div id="inicio-actions" style="display:flex;gap:.8rem;flex-wrap:wrap;justify-content:center">
+      <button onclick="openPlantModal()" style="padding:.8rem 1.6rem;background:none;border:1px solid rgba(127,184,90,.35);color:var(--accent);font-family:'DM Mono',monospace;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s">🌱 Nueva Planta</button>
+      <button onclick="showTabByName('cosechar')" style="padding:.8rem 1.6rem;background:var(--accent);color:var(--bg);border:none;font-family:'DM Mono',monospace;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:500;transition:background .2s">✦ Nueva cosecha</button>
+      <button onclick="showTabByName('cosechas')" style="padding:.8rem 1.6rem;background:none;border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s">◈ Ver cultivos</button>
+    </div>
+  </div>
+</section>
+
+<!-- TAB COSECHAR -->
+<section class="section" id="tab-cosechar">
+  <div class="drying-banner hidden" id="drying-banner" onclick="goToDryingEntries()" style="cursor:pointer">
+    <div><div class="db-title" id="drying-banner-title"></div><div class="db-sub">Tocá aquí para ver las cosechas secando y actualizar su peso.</div></div>
+    <span style="margin-left:auto;font-size:1rem;color:var(--accent2)">→</span>
+  </div>
+  <div class="log-section">
+    <div class="form-block">
+      <h2>Nueva cosecha</h2>
+      <div class="form-group"><label>Fecha de corte</label><input type="date" id="input-fecha"/></div>
+      
+      <div class="form-group">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:.4rem">
+          <label style="margin-bottom:0">Grupo / Cultivo</label>
+          <span onclick="openGroupModal()" style="font-size:.65rem; color:var(--text2); cursor:pointer; letter-spacing:.05em; text-transform:uppercase; transition:color .15s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">+ Nuevo</span>
+        </div>
+        <select id="input-grupo" onchange="filterPlantsByGroup()"><option value="">— Todos —</option></select>
+      </div>
+      
+      <div class="form-group">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:.4rem">
+          <label style="margin-bottom:0">Planta</label>
+          <span onclick="openPlantModal()" style="font-size:.65rem; color:var(--accent); cursor:pointer; letter-spacing:.05em; text-transform:uppercase; font-weight:500">+ Nueva planta</span>
+        </div>
+        <select id="input-planta"><option value="">— Seleccionar —</option></select>
+      </div>
+      
+      <div class="form-group">
+        <label>Peso fresco (opcional)</label>
+        <input type="number" id="input-peso-fresco" step="0.1" min="0" placeholder="— si lo pesás recién cortado —"/>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">¿Ya tenés el peso seco?</span>
+        <label class="toggle"><input type="checkbox" id="toggle-seco" onchange="toggleSecoInput()"/><span class="toggle-slider"></span></label>
+      </div>
+      <div id="grupo-seco" style="display:none;margin-top:.6rem">
+        <div class="form-group"><label>Peso seco (g)</label><input type="number" id="input-peso-seco" step="0.1" min="0" placeholder="0.0"/></div>
+      </div>
+      <div class="form-group" style="margin-top:.6rem"><label>Nota (opcional)</label><input type="text" id="input-nota" placeholder="top cola, rama lateral..."/></div>
+      <button class="btn-add" onclick="addEntry()">+ Registrar cosecha</button>
+    </div>
+    <div class="entries-block">
+      <div class="entries-header">
+        <h2>Registro</h2>
+        <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:.5rem;background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:.3rem .7rem">
+            <span style="font-size:.62rem;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap">÷</span>
+            <select id="cosechar-divisor" onchange="renderEntries()" style="background:transparent;border:none;color:var(--accent);font-family:'DM Mono',monospace;font-size:.82rem;outline:none;cursor:pointer;padding:0">
+              <option value="1">1</option>
+            </select>
+          </div>
+          <div class="entries-filter">
+            <button class="filter-btn active" onclick="setFilter('all',this)">Todas</button>
+            <button class="filter-btn" onclick="setFilter('secando',this)">Secando</button>
+            <button class="filter-btn" onclick="setFilter('seco',this)">Secas</button>
+          </div>
+        </div>
+      </div>
+      <div id="entries-container"><div class="empty-msg">Aún no hay cosechas registradas.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- TAB COSECHAS -->
+<section class="section" id="tab-cosechas">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.8rem;flex-wrap:wrap;gap:.8rem;">
+    <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--white)">Tus Cultivos</h2>
+    <div style="display:flex;gap:.6rem">
+      <button class="btn-outline" onclick="openGroupModal()">+ Nuevo grupo</button>
+      <button class="btn-outline green" onclick="openPlantModal(null,null)">+ Nueva planta</button>
+    </div>
+  </div>
+  <div id="groups-accordion-list"></div>
+</section>
+
+<!-- TAB RESUMEN -->
+<section class="section" id="tab-resumen">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:.8rem">
+    <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--white)">Resumen General</h2>
+    <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">
+      
+      <!-- Papelera -->
+      <button class="btn-outline" onclick="openTrashModal()">⟲ Papelera</button>
+
+      <!-- Divisor -->
+      <div style="display:flex;align-items:center;gap:.55rem;background:var(--card);border:1px solid var(--border);border-radius:3px;padding:.45rem .85rem">
+        <span style="font-size:.65rem;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap">÷ Dividir entre</span>
+        <select id="resumen-divisor" onchange="renderResumen()" style="background:transparent;border:none;color:var(--accent);font-family:'DM Mono',monospace;font-size:.88rem;outline:none;cursor:pointer;padding:0 .2rem">
+          <option value="1" selected>1</option>
+        </select>
+      </div>
+      <!-- Export -->
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+        <button class="btn-outline" onclick="openExportModal('csv')">↓ CSV</button>
+        <button class="btn-outline" onclick="openExportModal('pdf')">↓ PDF</button>
+      </div>
+    </div>
+  </div>
+  <div id="resumen-accordion-list"></div>
+</section>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-seco">
+  <div class="modal"><h3>Actualizar peso seco</h3>
+    <div class="modal-sub">Fecha: <span class="mh" id="ms-fecha"></span> · <span class="mh" id="ms-planta"></span><br><span id="ms-fresco"></span></div>
+    <div class="form-group"><label>Peso flor seca (g)</label><input type="number" id="ms-peso" step="0.1" min="0" placeholder="0.0"/></div>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-seco')">Cancelar</button><button class="btn-confirm" onclick="confirmUpdateSeco()">✓ Guardar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-group">
+  <div class="modal" style="max-width:400px"><h3 id="mg-title">Nuevo grupo</h3>
+    <div class="modal-sub">Agrupá tus plantas por cultivo o temporada.</div>
+    <div class="form-group"><label>Nombre *</label><input type="text" id="mg-nombre"/></div>
+    <div class="form-group"><label>Descripción (opcional)</label><input type="text" id="mg-desc"/></div>
+    <div class="sect-div">Color</div>
+    <div class="color-row" id="mg-color-row"></div>
+    <input type="hidden" id="mg-color" value="#7fb85a"/>
+    <input type="hidden" id="mg-editing-id" value=""/>
+    <input type="hidden" id="mg-return-to-plant" value=""/>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-group')">Cancelar</button><button class="btn-confirm" onclick="confirmGroup()">Guardar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-plant">
+  <div class="modal" style="max-width:500px"><h3 id="mp-title">Nueva planta</h3>
+    <div class="modal-sub">Agregá una genética a tu jardín.</div>
+    <input type="hidden" id="mp-editing-id" value=""/>
+
+    <div style="background:rgba(127,184,90,.06);border:1px solid rgba(127,184,90,.2);border-radius:4px;padding:1rem;margin-bottom:1.2rem;">
+      <div style="font-size:.68rem;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.6rem;">✦ Autocompletar con IA</div>
+      <div style="font-size:.72rem;color:var(--text2);margin-bottom:.8rem;line-height:1.6">Ingresá el nombre de la cepa y opcionalmente la fuente. Se buscarán los datos automáticamente.</div>
+      <div class="form-group" style="margin-bottom:.7rem"><label>Nombre de la cepa</label><input type="text" id="ai-strain-name" placeholder="ej: Wedding Cake" oninput="if(!document.getElementById('mp-nombre').dataset.manual){document.getElementById('mp-nombre').value=this.value;}"/></div>
+      <div class="form-group" style="margin-bottom:.8rem"><label>Fuente (opcional)</label><input type="text" id="ai-strain-source" placeholder="ej: banco, breeder..."/></div>
+      <button type="button" onclick="aiAutofill()" id="ai-btn" style="width:100%;padding:.7rem;background:none;border:1px solid rgba(127,184,90,.4);color:var(--accent);font-family:'DM Mono',monospace;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.6rem;">
+        <span id="ai-btn-text">✦ Buscar y cargar datos</span>
+      </button>
+      <div id="ai-error" style="font-size:.7rem;color:var(--accent3);margin-top:.5rem;display:none"></div>
+    </div>
+
+    <div class="form-group"><label>Nombre *</label><input type="text" id="mp-nombre" oninput="this.dataset.manual='1'"/></div>
+    <div class="form-group">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+        <span style="font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text3)">Grupo</span>
+        <button type="button" onclick="quickCreateGroup()" style="background:none;border:none;font-size:.68rem;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.08em;text-transform:uppercase;padding:0;transition:opacity .15s" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">+ Nuevo grupo</button>
+      </div>
+      <select id="mp-grupo"><option value="">— Sin grupo —</option></select>
+    </div>
+    <div class="sect-div">Color identificador</div>
+    <div class="color-row" id="mp-color-row"></div>
+    <input type="hidden" id="mp-color" value="#7fb85a"/>
+    <div class="sect-div">Genética</div>
+    <div class="form-group">
+      <label>% Sativa — <span id="mp-sv">50</span>% · Indica <span id="mp-iv">50</span>%</label>
+      <div class="range-row"><span style="font-size:.65rem;color:#5abbc8">Sativa</span><input type="range" id="mp-sativa" min="0" max="100" value="50" oninput="updSativa()"/><span style="font-size:.65rem;color:#8a7eb8">Indica</span></div>
+    </div>
+    <div class="sect-div">Info técnica</div>
+    <div class="form-group"><label>THC aprox.</label><input type="text" id="mp-thc"/></div>
+    <div class="form-group"><label>Floración</label><input type="text" id="mp-floracion"/></div>
+    <div class="form-group"><label>Cruzamiento / Origen</label><input type="text" id="mp-origen"/></div>
+    <div class="form-group"><label>Breeder / Obtentor</label><input type="text" id="mp-breeder"/></div>
+    <div class="form-group"><label>Aroma / Olor</label><input type="text" id="mp-aroma"/></div>
+    <div class="form-group"><label>Gusto / Sabor</label><input type="text" id="mp-gusto"/></div>
+    <div class="form-group"><label>Efecto</label><input type="text" id="mp-efecto"/></div>
+    <div class="form-group"><label>Color de hoja</label><input type="text" id="mp-colorhoja"/></div>
+    <div class="form-group"><label>Notas de crecimiento</label><textarea id="mp-perfil"></textarea></div>
+
+    <div class="sect-div">Fotos</div>
+    <div style="font-size:.7rem;color:var(--text3);margin-bottom:.6rem;line-height:1.6">Subí fotos de la planta. Se guardan en la nube y se ven en la tarjeta.</div>
+    <div id="mp-photo-gallery" class="photo-gallery"></div>
+    <div style="display:flex;gap:.6rem;margin-top:.6rem;flex-wrap:wrap">
+      <label style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem .9rem;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+        📁 Archivo
+        <input type="file" id="mp-photo-file" accept="image/*" multiple style="display:none" onchange="handlePhotoUpload(this.files, false)"/>
+      </label>
+      <label style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem .9rem;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+        📷 Cámara
+        <input type="file" id="mp-photo-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this.files, false)"/>
+      </label>
+      <span id="mp-photo-uploading" style="font-size:.7rem;color:var(--accent2);align-self:center;display:none">⏳ Subiendo…</span>
+    </div><button class="btn-cancel" onclick="closeModal('modal-plant')">Cancelar</button><button class="btn-confirm" onclick="confirmPlant()">Guardar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay confirm-danger" id="modal-confirm">
+  <div class="modal" style="max-width:360px"><h3 id="mc-title">¿Confirmar?</h3>
+    <div class="modal-sub" id="mc-body"></div>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-confirm')">Cancelar</button><button class="btn-confirm" id="mc-btn">Eliminar</button></div>
+  </div>
+</div>
+
+<!-- MODAL PAPELERA -->
+<div class="modal-overlay" id="modal-trash">
+  <div class="modal" style="max-width:500px">
+    <h3>Papelera e Historial</h3>
+    <div class="modal-sub">Elementos eliminados recientemente. Podés restaurarlos desde aquí.</div>
+    <div id="trash-list" style="display:flex;flex-direction:column;gap:.6rem;max-height:50vh;overflow-y:auto;margin-bottom:1rem;"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-trash')">Cerrar</button>
+      <button class="btn-outline danger" style="flex:1" onclick="emptyTrash()">Vaciar papelera</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-export">
+  <div class="modal" style="max-width:420px">
+    <h3 id="export-title">Exportar</h3>
+    <div class="modal-sub">Seleccioná qué grupos incluir en la exportación.</div>
+    <input type="hidden" id="export-type" value="csv"/>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border);margin-bottom:.8rem">
+      <span style="font-size:.72rem;color:var(--text2)">Todos los grupos</span>
+      <label class="toggle"><input type="checkbox" id="export-all" checked onchange="toggleExportAll(this.checked)"/><span class="toggle-slider"></span></label>
+    </div>
+    <div id="export-group-list" style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:.4rem"></div>
+    <div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-export')">Cancelar</button><button class="btn-confirm" onclick="runExport()">↓ Exportar</button></div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="photo-lightbox hidden" id="photo-lightbox" onclick="closeLightbox(event)">
+  <button class="photo-lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt=""/>
+  <button class="photo-lightbox-del" id="lightbox-del-btn">🗑 Eliminar foto</button>
+</div>
+
+<div class="undo-toast" id="undo-toast">
+  <span class="undo-toast-msg" id="undo-msg"></span>
+  <button class="undo-btn" onclick="doUndo()">↩ Deshacer</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+//  FIREBASE CONFIG
+// ══════════════════════════════════════════════════
+if (typeof firebase === 'undefined') {
+  document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem;text-align:center;font-family:monospace;color:#d4dcc8;background:#0f130e;"><div><h2 style="color:#e07a5f;margin-bottom:1rem;">⚠ Error de conexión</h2><p style="color:#8fa07e;max-width:400px;line-height:1.7;">No se pudo cargar Firebase. Verificá tu conexión a internet y recargá la página.<br><br><button onclick="location.reload()" style="padding:.7rem 1.5rem;background:#7fb85a;color:#0f130e;border:none;border-radius:3px;cursor:pointer;font-family:monospace;font-size:.85rem;">Recargar</button></p></div></div>';
+  throw new Error('Firebase SDK no cargó');
+}
+firebase.initializeApp({
+  apiKey:            "AIzaSyCWFYKyLnVUFO77Yc9-1c45xLYsvZgPUlI",
+  authDomain:        "cosecha-96dc2.firebaseapp.com",
+  databaseURL:       "https://cosecha-96dc2-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "cosecha-96dc2",
+  storageBucket:     "cosecha-96dc2.firebasestorage.app",
+  messagingSenderId: "599888392531",
+  appId:             "1:599888392531:web:8efff315ed2055390671a6"
+});
+
+const dbRef = path => firebase.database().ref('jardin/' + path);
+const dbGet = async path => { const s = await dbRef(path).get(); return s.exists() ? s.val() : null; };
+const dbSet = async (path, data) => dbRef(path).set(data);
+
+// ══════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════
+let currentUser=null, groups=[], plants=[], entries=[], trash=[];
+let activeFilter='all', editingEntryId=null, saveTimer=null;
+
+const openAccs = new Set(['res-totales']); 
+const collapsedPlants = new Set(); 
+
+function toggleAcc(id, headerEl) {
+  if (openAccs.has(id)) openAccs.delete(id);
+  else openAccs.add(id);
+
+  const content = document.getElementById(id);
+  if (content) {
+    if (openAccs.has(id)) {
+      content.classList.add('open');
+      if (headerEl) headerEl.classList.add('open');
+    } else {
+      content.classList.remove('open');
+      if (headerEl) headerEl.classList.remove('open');
+    }
+  }
+}
+
+function togglePlant(id) {
+  const extra = document.getElementById('plant-extra-' + id);
+  const icon = document.getElementById('plant-icon-' + id);
+  if (!extra) return;
+
+  if (collapsedPlants.has(id)) {
+    collapsedPlants.delete(id);
+    extra.style.display = 'block';
+    if (icon) icon.style.transform = 'rotate(0deg)';
+  } else {
+    collapsedPlants.add(id);
+    extra.style.display = 'none';
+    if (icon) icon.style.transform = 'rotate(180deg)';
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════════
+async function sha256(s){
+  if (typeof CryptoJS !== 'undefined') {
+    return CryptoJS.SHA256(s).toString();
+  }
+  const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+function switchAuthTab(tab,btn){
+  document.querySelectorAll('.auth-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  document.getElementById('auth-login').style.display=tab==='login'?'block':'none';
+  document.getElementById('auth-register').style.display=tab==='register'?'block':'none';
+  document.getElementById('login-error').textContent='';document.getElementById('reg-error').textContent='';
+}
+
+function setBtnLoading(btnId,txtId,loading,txt){
+  const btn=document.getElementById(btnId),sp=document.getElementById(txtId);
+  btn.disabled=loading;
+  sp.innerHTML=loading?`⏳ ${txt}`:txt;
+}
+
+async function doLogin(){
+  try {
+    const username=document.getElementById('login-user').value.trim().toLowerCase();
+    const password=document.getElementById('login-pass').value;
+    const errEl=document.getElementById('login-error'); errEl.textContent='';
+    
+    if(!username||!password){errEl.textContent='Completá usuario y contraseña.';return;}
+    
+    setBtnLoading('login-btn','login-btn-text',true,'Ingresando…');
+    
+    const hash=await sha256(password+username);
+    const stored=await dbGet(`users/${username}/hash`);
+    
+    if(!stored||stored!==hash){
+        errEl.textContent='Usuario o contraseña incorrectos.';
+        setBtnLoading('login-btn','login-btn-text',false,'Ingresar →');
+        return;
+    }
+    
+    const data=await dbGet(`users/${username}/data`)||{groups:[],plants:[],entries:[],trash:[]};
+    localStorage.setItem('jd_session',username);
+    bootApp(username,data);
+  } catch(e) {
+    document.getElementById('login-error').textContent='Error de conexión: '+e.message;
+  } finally {
+    setBtnLoading('login-btn','login-btn-text',false,'Ingresar →');
+  }
+}
+
+async function doRegister(){
+  try {
+    const username=document.getElementById('reg-user').value.trim().toLowerCase();
+    const password=document.getElementById('reg-pass').value;
+    const pass2=document.getElementById('reg-pass2').value;
+    const errEl=document.getElementById('reg-error');errEl.textContent='';
+    
+    if(!username||!password){errEl.textContent='Completá todos los campos.';return;}
+    if(username.length<3){errEl.textContent='Usuario: mínimo 3 caracteres.';return;}
+    if(password.length<6){errEl.textContent='Contraseña: mínimo 6 caracteres.';return;}
+    if(password!==pass2){errEl.textContent='Las contraseñas no coinciden.';return;}
+    
+    setBtnLoading('reg-btn','reg-btn-text',true,'Creando…');
+    
+    const existing=await dbGet(`users/${username}/hash`);
+    if(existing){
+        errEl.textContent='Ese usuario ya existe.';
+        setBtnLoading('reg-btn','reg-btn-text',false,'Crear cuenta →');
+        return;
+    }
+    
+    const hash=await sha256(password+username);
+    const initData={groups:[],plants:[],entries:[],trash:[]};
+    await dbSet(`users/${username}/hash`,hash);
+    await dbSet(`users/${username}/data`,initData);
+    
+    localStorage.setItem('jd_session',username);
+    bootApp(username,initData);
+  } catch(e) {
+    document.getElementById('reg-error').textContent='Error de conexión: '+e.message;
+  } finally {
+    setBtnLoading('reg-btn','reg-btn-text',false,'Crear cuenta →');
+  }
+}
+
+function setSyncDot(s){const d=document.getElementById('sync-dot');d.className='sync-dot '+(s||'');}
+
+function scheduleSave(){
+  setSyncDot('saving');clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    try{await dbSet(`users/${currentUser}/data`,{groups,plants,entries,trash});setSyncDot('ok');setTimeout(()=>setSyncDot(''),3000);}
+    catch(e){setSyncDot('error');showToast('⚠ Error al guardar',true);}
+  },1500);
+}
+
+function bootApp(username,data){
+  currentUser=username; 
+  groups=data.groups||[]; plants=data.plants||[]; entries=data.entries||[]; trash=data.trash||[];
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('splash-user').textContent = 'Bienvenido, ' + username;
+  document.getElementById('splash-screen').classList.remove('hidden');
+}
+
+function updateInicioUI() {
+  const welcome = document.getElementById('inicio-welcome');
+  const actions = document.getElementById('inicio-actions');
+  if(plants.length === 0) {
+      welcome.style.display = 'flex';
+      actions.style.display = 'none';
+  } else {
+      welcome.style.display = 'none';
+      actions.style.display = 'flex';
+  }
+}
+
+function enterAppFromSplash() {
+  document.getElementById('splash-screen').classList.add('hidden');
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('user-name-display').textContent = currentUser;
+  document.getElementById('user-avatar').textContent = currentUser.charAt(0).toUpperCase();
+  document.getElementById('input-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('inicio-user-label').textContent = 'Bienvenido, ' + currentUser;
+  
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn')[0].classList.add('active');
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-inicio').classList.add('active');
+  
+  updateInicioUI();
+  populateGroupSelect('input-grupo',true);
+  filterPlantsByGroup();
+  updateTotals();
+}
+
+function showTabByName(name){
+  const idx={'inicio':0,'cosechar':1,'cosechas':2,'resumen':3};
+  const btn=document.querySelectorAll('.tab-btn')[idx[name]];
+  if(btn) showTab(name,btn);
+}
+
+function doLogout(){
+  clearTimeout(saveTimer);localStorage.removeItem('jd_session');
+  currentUser=null;groups=[];plants=[];entries=[];trash=[];
+  document.getElementById('splash-screen').classList.add('hidden');
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-user').value='';document.getElementById('login-pass').value='';
+  document.getElementById('login-error').textContent='';
+  document.getElementById('auth-screen').classList.remove('hidden');
+}
+
+// ══════════════════════════════════════════════════
+//  UI HELPERS & TRASH / UNDO
+// ══════════════════════════════════════════════════
+const COLORS=['#7fb85a','#d4c84a','#e09840','#8a7eb8','#5abbc8','#d4a0b0','#e07a5f','#c8a84b','#6db57a','#b07ac8','#7ac8b8','#c87a9a'];
+function buildSwatches(rowId,inputId){
+  const row=document.getElementById(rowId),inp=document.getElementById(inputId);row.innerHTML='';
+  COLORS.forEach(c=>{const d=document.createElement('div');d.className='color-swatch'+(c===inp.value?' selected':'');d.style.background=c;d.onclick=()=>{inp.value=c;row.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));d.classList.add('selected');};row.appendChild(d);});
+}
+
+function showTab(name,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
+  if(name==='inicio')   updateInicioUI();
+  if(name==='cosechar') renderEntries();
+  if(name==='cosechas') renderGroupsIndex();
+  if(name==='resumen')  renderResumen();
+}
+
+function showToast(msg,err){
+  const t=document.getElementById('toast');t.textContent=msg;t.style.background=err?'var(--accent3)':'var(--accent)';
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open');if(id==='modal-seco')editingEntryId=null;}
+document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('click',ev=>{if(ev.target===el)closeModal(el.id);}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(m=>closeModal(m.id));});
+
+function confirmDanger(title,body,cb){
+  document.getElementById('mc-title').textContent=title;document.getElementById('mc-body').textContent=body;
+  document.getElementById('mc-btn').onclick=()=>{closeModal('modal-confirm');cb();};
+  document.getElementById('modal-confirm').classList.add('open');
+}
+
+// ── TRASH & UNDO ──
+let undoTimer = null;
+let lastTrashId = null;
+
+function moveToTrash(type, data, label) {
+  const ts = Date.now();
+  trash.push({ id: ts, type, data, label, deletedAt: ts });
+  scheduleSave();
+  
+  lastTrashId = ts;
+  clearTimeout(undoTimer);
+  document.getElementById('undo-msg').textContent = `🗑️ ${label} eliminado`;
+  document.getElementById('undo-toast').classList.add('show');
+  undoTimer = setTimeout(() => {
+    document.getElementById('undo-toast').classList.remove('show');
+  }, 5000);
+}
+
+function doUndo() {
+  if (lastTrashId) {
+    restoreTrash(lastTrashId);
+    document.getElementById('undo-toast').classList.remove('show');
+    showToast('✓ Restaurado con éxito');
+  }
+}
+
+function restoreTrash(id) {
+  const itemIdx = trash.findIndex(t => t.id === id);
+  if (itemIdx < 0) return;
+  const item = trash[itemIdx];
+  if (item.type === 'entry') entries.push(item.data);
+  if (item.type === 'plant') plants.push(item.data);
+  if (item.type === 'group') groups.push(item.data);
+  
+  trash.splice(itemIdx, 1);
+  scheduleSave();
+  
+  filterPlantsByGroup(); populateGroupSelect('input-grupo',true);
+  updateTotals(); updateInicioUI();
+  if(document.getElementById('tab-cosechar').classList.contains('active')) renderEntries();
+  if(document.getElementById('tab-cosechas').classList.contains('active')) renderGroupsIndex();
+  if(document.getElementById('tab-resumen').classList.contains('active')) renderResumen();
+  if(document.getElementById('modal-trash').classList.contains('open')) openTrashModal();
+}
+
+function openTrashModal() {
+  const list = document.getElementById('trash-list');
+  if (!trash.length) {
+    list.innerHTML = '<div class="empty-msg">La papelera está vacía.</div>';
+  } else {
+    list.innerHTML =[...trash].reverse().map(t => {
+      const diffMs = Date.now() - t.deletedAt;
+      const diffMin = Math.floor(diffMs/60000);
+      const diffH = Math.floor(diffMin/60);
+      const diffD = Math.floor(diffH/24);
+      const date = diffD>0?`hace ${diffD} día${diffD>1?'s':''}`:diffH>0?`hace ${diffH} hora${diffH>1?'s':''}`:diffMin>0?`hace ${diffMin} min`:'hace un momento';
+      const badge = t.type==='entry'?'Cosecha':t.type==='plant'?'Planta':'Grupo';
+      return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:.8rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem">
+        <div><div style="font-size:.6rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em">${badge} · ${date}</div>
+        <div style="font-size:.8rem;color:var(--text);margin-top:.2rem">${t.label}</div></div>
+        <button class="btn-outline green" style="padding:.4rem .7rem" onclick="restoreTrash(${t.id})">Restaurar</button>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('modal-trash').classList.add('open');
+}
+
+function emptyTrash() {
+  if (!trash.length) return;
+  confirmDanger('Vaciar papelera', 'Esta acción eliminará permanentemente todos los elementos. No se puede deshacer.', () => {
+    trash =[];
+    scheduleSave();
+    openTrashModal();
+    showToast('✓ Papelera vaciada');
+  });
+}
+
+// ══════════════════════════════════════════════════
+//  SELECTS & COSECHAR
+// ══════════════════════════════════════════════════
+function populateGroupSelect(selId,withAll){
+  const sel=document.getElementById(selId),prev=sel.value;
+  sel.innerHTML=withAll?'<option value="">— Todos —</option>':'<option value="">— Sin grupo —</option>';
+  groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.nombre;sel.appendChild(o);});
+  if(prev)sel.value=prev;
+}
+
+function filterPlantsByGroup(){
+  const gid=document.getElementById('input-grupo').value,
+        sel=document.getElementById('input-planta'),
+        prev=sel.value;
+
+  if(plants.length === 0) {
+    sel.innerHTML='<option value="">— No hay plantas (creá una) —</option>';
+    return;
+  }
+
+  sel.innerHTML='<option value="">— Seleccionar —</option>';
+  const filtered=gid?plants.filter(p=>p.grupoId===gid):plants;
+  
+  if(!gid&&groups.length){
+    groups.forEach(g=>{const gp=plants.filter(p=>p.grupoId===g.id);if(!gp.length)return;const grp=document.createElement('optgroup');grp.label=g.nombre;gp.forEach(p=>{const o=document.createElement('option');o.value=p.nombre;o.textContent=p.nombre;grp.appendChild(o);});sel.appendChild(grp);});
+    const ung=plants.filter(p=>!p.grupoId);if(ung.length){const grp=document.createElement('optgroup');grp.label='Sin grupo';ung.forEach(p=>{const o=document.createElement('option');o.value=p.nombre;o.textContent=p.nombre;grp.appendChild(o);});sel.appendChild(grp);}
+  }else {
+    filtered.forEach(p=>{const o=document.createElement('option');o.value=p.nombre;o.textContent=p.nombre;sel.appendChild(o);});
+  }
+  
+  if(prev&&filtered.find(p=>p.nombre===prev))sel.value=prev;
+}
+
+function populatePlantGroupSel(selId,gid){
+  const sel=document.getElementById(selId);sel.innerHTML='<option value="">— Sin grupo —</option>';
+  groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.nombre;sel.appendChild(o);});
+  if(gid)sel.value=gid;
+}
+
+function toggleSecoInput(){document.getElementById('grupo-seco').style.display=document.getElementById('toggle-seco').checked?'block':'none';}
+function addEntry(){
+  const fecha=document.getElementById('input-fecha').value,planta=document.getElementById('input-planta').value;
+  const pesoFresco=parseFloat(document.getElementById('input-peso-fresco').value)||null;
+  const hasSeco=document.getElementById('toggle-seco').checked;
+  const pesoSeco=hasSeco?parseFloat(document.getElementById('input-peso-seco').value):null;
+  const nota=document.getElementById('input-nota').value.trim();
+  if(!fecha||!planta){showToast('⚠ Completá fecha y planta.',true);return;}
+  if(hasSeco&&(!pesoSeco||pesoSeco<=0)){showToast('⚠ Ingresá el peso seco.',true);return;}
+  if(hasSeco&&pesoFresco&&pesoSeco>=pesoFresco){showToast('⚠ El peso seco debe ser menor al fresco.',true);return;}
+  entries.push({id:Date.now(),fecha,planta,pesoFresco,pesoSeco,estado:hasSeco?'seco':'secando',nota});
+  entries.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  scheduleSave();renderEntries();updateTotals();
+  document.getElementById('input-peso-fresco').value='';document.getElementById('input-peso-seco').value='';
+  document.getElementById('input-nota').value='';document.getElementById('toggle-seco').checked=false;
+  document.getElementById('grupo-seco').style.display='none';
+  showToast(hasSeco?`✓ ${pesoSeco}g secos de ${planta}`:`✓ ${planta} en secado`);
+}
+function setFilter(f,btn){activeFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderEntries();}
+
+function renderEntries(){
+  if(!currentUser)return;
+  const divSel = document.getElementById('cosechar-divisor');
+  if(divSel && divSel.options.length < 2){
+    for(let i=2;i<=45;i++){const o=document.createElement('option');o.value=i;o.textContent=i;divSel.appendChild(o);}
+  }
+  const cdiv = divSel ? (parseInt(divSel.value)||1) : 1;
+  const cfmt = v => (v/cdiv).toFixed(1);
+  const secN=entries.filter(e=>e.estado==='secando').length;
+  const banner=document.getElementById('drying-banner');
+  if(secN>0){banner.classList.remove('hidden');document.getElementById('drying-banner-title').textContent=`⏳ Tenés ${secN} cosecha${secN>1?'s':''} secando`;}
+  else banner.classList.add('hidden');
+  
+  const filtered=activeFilter==='all'?entries:entries.filter(e=>e.estado===activeFilter);
+  const container=document.getElementById('entries-container');
+  if(!filtered.length){container.innerHTML='<div class="empty-msg">No hay entradas para mostrar.</div>';return;}
+  
+  const rows=[...filtered].reverse().map(e=>{
+    const p=plants.find(x=>x.nombre===e.planta)||{color:'#7fb85a'};
+    const d=e.fecha.split('-').reverse().join('/');
+    let wH,sH,aH,cardActions,cardWeight,wDiv='';
+    if(e.estado==='secando'){
+      sH=`<span class="status-badge secando">⏳ secando</span>`;
+      const fw=e.pesoFresco?`${e.pesoFresco.toFixed(1)}g fresco`:'sin peso fresco';
+      const fwDiv=e.pesoFresco?`${cfmt(e.pesoFresco)}g`:'—';
+      wH=`<div><span class="w-drying">${fw}</span><div class="w-sub">seco: pendiente</div></div>`;
+      wDiv=`<div><span class="w-drying">${fwDiv}</span></div>`;
+      aH=`<div class="action-cell"><button class="btn-update" onclick="openSecoModal(${e.id})">⏳ Peso seco</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
+      cardWeight=`<span class="w-drying">${fw}</span>${cdiv>1?`<span style="font-size:.75rem;color:var(--text3);margin-left:.5rem">/ ${fwDiv}</span>`:''}<div class="w-sub" style="font-size:.65rem;color:var(--text3)">seco: pendiente</div>`;
+      cardActions=`
+        <button onclick="openSecoModal(${e.id})" style="background:rgba(200,168,75,.12);border:1px solid rgba(200,168,75,.3);color:var(--accent2);">⏳ Peso seco</button>
+        <button onclick="deleteEntry(${e.id})" style="background:none;border:1px solid var(--border);color:var(--accent3);flex:0;padding:.55rem .8rem;">✕</button>`;
+    }else{
+      sH=`<span class="status-badge seco">✓ seco</span>`;
+      const fw=e.pesoFresco?`fresco: ${e.pesoFresco.toFixed(1)}g`:'';
+      const ratio=(e.pesoFresco&&e.pesoSeco)?` · ${((e.pesoSeco/e.pesoFresco)*100).toFixed(0)}% ratio`:'';
+      wH=`<div><span class="w-dry">${e.pesoSeco.toFixed(1)} g</span>${(fw||ratio)?`<div class="w-sub">${fw}${ratio}</div>`:''}</div>`;
+      wDiv=`<div><span class="w-dry">${cfmt(e.pesoSeco)} g</span></div>`;
+      cardWeight=`<span class="w-dry" style="font-size:.9rem;font-weight:500">${e.pesoSeco.toFixed(1)} g seco</span>${cdiv>1?`<span style="font-size:.75rem;color:var(--text3);margin-left:.5rem">/ ${cfmt(e.pesoSeco)} g</span>`:''} ${fw?`<div class="w-sub" style="font-size:.65rem;color:var(--text3)">${fw}${ratio}</div>`:''}`;
+      cardActions=`<button onclick="deleteEntry(${e.id})" style="background:none;border:1px solid var(--border);color:var(--accent3);">✕ Eliminar entrada</button>`;
+      aH=`<div class="action-cell"><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
+    }
+    const tableRow=`<tr><td>${d}</td><td><span class="plant-badge"><span class="plant-badge-dot" style="background:${p.color}"></span>${e.planta}</span></td><td>${wH}</td>${cdiv>1?`<td>${wDiv}</td>`:''}<td>${sH}</td><td style="font-size:.68rem;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.nota||''}">${e.nota||'—'}</td><td>${aH}</td></tr>`;
+    const card=`<div class="entry-card">
+      <div class="entry-card-top">
+        <div class="entry-card-name"><span style="width:8px;height:8px;border-radius:50%;background:${p.color};display:inline-block;flex-shrink:0"></span>${e.planta}</div>
+        <div class="entry-card-date">${d}</div>
+      </div>
+      <div class="entry-card-mid"><div>${cardWeight}</div>${sH}</div>
+      ${e.nota?`<div style="font-size:.68rem;color:var(--text3);margin-top:.4rem">${e.nota}</div>`:''}
+      <div class="entry-card-actions">${cardActions}</div>
+    </div>`;
+    return {tableRow, card};
+  });
+
+  container.innerHTML=`<table class="entries-table">
+    <thead><tr><th>Fecha</th><th>Planta</th><th>Peso total</th>${cdiv>1?`<th>÷ ${cdiv}</th>`:''}<th>Estado</th><th>Nota</th><th></th></tr></thead>
+    <tbody>${rows.map(r=>r.tableRow).join('')}</tbody></table>`+
+  `<div class="entry-cards">${rows.map(r=>r.card).join('')}</div>`;
+}
+
+function deleteEntry(id){
+  const entry = entries.find(e=>e.id===id);
+  if(!entry) return;
+  entries = entries.filter(e=>e.id!==id);
+  moveToTrash('entry', entry, `Cosecha de ${entry.planta}`);
+  renderEntries(); updateTotals();
+}
+function updateTotals(){
+  const dry=entries.filter(e=>e.estado==='seco').reduce((s,e)=>s+(e.pesoSeco||0),0);
+  const drying=entries.filter(e=>e.estado==='secando').reduce((s,e)=>s+(e.pesoFresco||0),0);
+  document.getElementById('totalDry').textContent=dry.toFixed(1);
+  document.getElementById('totalDrying').textContent=drying.toFixed(1);
+  document.getElementById('totalHarvests').textContent=entries.length;
+}
+function openSecoModal(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  editingEntryId=id;
+  document.getElementById('ms-fecha').textContent=e.fecha.split('-').reverse().join('/');
+  document.getElementById('ms-planta').textContent=e.planta;
+  document.getElementById('ms-fresco').textContent=e.pesoFresco?`Peso fresco: ${e.pesoFresco.toFixed(1)}g`:'Sin peso fresco';
+  document.getElementById('ms-peso').value='';
+  document.getElementById('modal-seco').classList.add('open');
+  setTimeout(()=>document.getElementById('ms-peso').focus(),200);
+}
+function confirmUpdateSeco(){
+  const val=parseFloat(document.getElementById('ms-peso').value);
+  if(!val||val<=0){showToast('⚠ Ingresá un peso válido.',true);return;}
+  const e=entries.find(x=>x.id===editingEntryId);if(!e)return;
+  e.pesoSeco=val;e.estado='seco';
+  scheduleSave();closeModal('modal-seco');renderEntries();updateTotals();
+  showToast(`✓ ${val}g secos de ${e.planta}`);
+}
+
+// ══════════════════════════════════════════════════
+//  COSECHAS (ACCORDIONS & PLANT CARDS)
+// ══════════════════════════════════════════════════
+function plantTotals(){const t={};plants.forEach(p=>t[p.nombre]={dry:0,drying:0});entries.forEach(e=>{if(!t[e.planta])t[e.planta]={dry:0,drying:0};if(e.estado==='seco')t[e.planta].dry+=e.pesoSeco||0;else t[e.planta].drying+=e.pesoFresco||0;});return t;}
+
+function renderGroupsIndex(){
+  const totals=plantTotals();
+  let html='';
+  
+  groups.forEach(g => {
+    const gPlants = plants.filter(p=>p.grupoId===g.id);
+    const gDry = gPlants.reduce((s,p)=>s+(totals[p.nombre]?.dry||0),0);
+    const accId = 'c-grp-' + g.id;
+    const isOpen = openAccs.has(accId);
+
+    html += `<div class="acc-box">
+      <div class="acc-header ${isOpen?'open':''}" onclick="toggleAcc('${accId}', this)">
+        <div style="display:flex;align-items:center;gap:.8rem">
+          <div style="width:4px;height:1.8rem;background:${g.color};border-radius:2px;flex-shrink:0"></div>
+          <div>
+            <div style="font-family:'Playfair Display',serif;font-size:1.15rem;color:var(--white)">${g.nombre}</div>
+            <div style="font-size:.68rem;color:var(--text3);margin-top:.15rem">${gPlants.length} plantas · ${gDry.toFixed(1)}g seco</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap" onclick="event.stopPropagation()">
+          <button class="btn-outline" onclick="openGroupModal('${g.id}')">Editar</button>
+          <button class="btn-outline danger" onclick="deleteGroup('${g.id}')">✕</button>
+          <span class="acc-arrow" style="color:var(--text3);margin-left:.4rem">▾</span>
+        </div>
+      </div>
+      <div class="acc-content ${isOpen?'open':''}" id="${accId}">
+        <div style="margin-bottom:1.2rem"><button class="btn-outline green" onclick="openPlantModal(null, '${g.id}')">+ Nueva planta en ${g.nombre}</button></div>
+        <div class="plants-grid">
+          ${gPlants.length ? gPlants.map(p => plantCardHTML(p, totals)).join('') : '<div class="empty-msg" style="grid-column:1/-1;background:transparent">Este grupo no tiene plantas.</div>'}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  const ungrouped = plants.filter(p=>!p.grupoId);
+  if(ungrouped.length){
+    const uDry = ungrouped.reduce((s,p)=>s+(totals[p.nombre]?.dry||0),0);
+    const accId = 'c-grp-ungrouped';
+    const isOpen = openAccs.has(accId);
+    
+    html += `<div class="acc-box" style="border-style:dashed">
+      <div class="acc-header ${isOpen?'open':''}" onclick="toggleAcc('${accId}', this)">
+        <div style="display:flex;align-items:center;gap:.8rem">
+          <div style="width:4px;height:1.8rem;background:var(--text3);border-radius:2px;flex-shrink:0"></div>
+          <div>
+            <div style="font-family:'Playfair Display',serif;font-size:1.15rem;color:var(--text2)">Sin grupo</div>
+            <div style="font-size:.68rem;color:var(--text3);margin-top:.15rem">${ungrouped.length} plantas · ${uDry.toFixed(1)}g seco</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.6rem" onclick="event.stopPropagation()">
+          <span class="acc-arrow" style="color:var(--text3);margin-left:.4rem">▾</span>
+        </div>
+      </div>
+      <div class="acc-content ${isOpen?'open':''}" id="${accId}">
+        <div style="margin-bottom:1.2rem"><button class="btn-outline green" onclick="openPlantModal(null, '__ungrouped__')">+ Nueva planta sin grupo</button></div>
+        <div class="plants-grid">
+          ${ungrouped.map(p => plantCardHTML(p, totals)).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if(!groups.length && !ungrouped.length) {
+    html = `<div style="text-align:center;padding:3rem 0"><div style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--text2);margin-bottom:.5rem">Tu jardín está vacío</div><div style="font-size:.75rem;color:var(--text3)">Creá un grupo y empezá a agregar plantas</div></div>`;
+  }
+  
+  document.getElementById('groups-accordion-list').innerHTML = html;
+}
+
+function plantCardHTML(p, totals) {
+  const t = totals[p.nombre] || {dry: 0, drying: 0};
+  const eid = p.id.replace(/'/g, "\\'");
+  const isCollapsed = collapsedPlants.has(eid);
+
+  let displayAroma = p.aroma || '—';
+  if (p.olor && p.olor !== '—' && p.aroma !== p.olor) {
+       displayAroma = p.aroma !== '—' ? p.aroma + ' · ' + p.olor : p.olor;
+  }
+
+  const hasBreeder = p.breeder && p.breeder !== '—';
+  const hasGusto = p.gusto && p.gusto !== '—';
+  const hasEfecto = p.efecto && p.efecto !== '—';
+  const hasColorHoja = p.colorHoja && p.colorHoja !== '—';
+  const hasPerfil = p.perfil && p.perfil !== '—' && p.perfil.trim() !== '';
+  const hasExtra = hasBreeder || hasGusto || hasEfecto || hasColorHoja || hasPerfil;
+
+  return `<div class="plant-card" id="plant-card-${eid}">
+    <!-- HEADER CLICKABLE -->
+    <div class="plant-header" style="cursor:pointer; user-select:none;" onclick="togglePlant('${eid}')">
+      <div class="plant-dot" style="background:${p.color}"></div>
+      <div class="plant-name">${p.nombre}</div>
+      <div class="plant-totals">
+        <div class="pt-dry">${t.dry.toFixed(1)} g seco</div>
+        ${t.drying > 0 ? `<div class="pt-drying">${t.drying.toFixed(1)} g secando</div>` : ''}
+      </div>
+      ${hasExtra ? `<div id="plant-icon-${eid}" style="margin-left:.5rem; color:var(--text3); font-size:.8rem; transition:transform 0.2s; transform:${isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)'}">▴</div>` : ''}
+    </div>
+    
+    <div class="plant-info">
+      <!-- BASIC INFO -->
+      <div class="sativa-indica-bar"><div class="si-sativa" style="width:${p.sativa}%"></div><div class="si-indica" style="width:${p.indica}%"></div></div>
+      <div class="si-label"><span style="color:#5abbc8">Sativa ${p.sativa}%</span><span style="color:#8a7eb8">Indica ${p.indica}%</span></div>
+      <div class="plant-info-row" style="margin-top:.55rem"><span class="key">THC</span><span class="val">${p.thc}${p.cbd && p.cbd !== '—' ? ' · CBD ' + p.cbd : ''}</span></div>
+      <div class="plant-info-row"><span class="key">Floración</span><span class="val">${p.floracion}</span></div>
+      <div class="plant-info-row"><span class="key">Cruzamiento</span><span class="val">${p.origen}</span></div>
+
+      <!-- EXTRA INFO -->
+      ${hasExtra ? `
+      <div id="plant-extra-${eid}" style="display:${isCollapsed ? 'none' : 'block'}; margin-top:.4rem;">
+        ${hasBreeder ? `<div class="plant-info-row"><span class="key">Breeder</span><span class="val">${p.breeder}</span></div>` : ''}
+        <div class="plant-info-row"><span class="key">Aroma/Olor</span><span class="val">${displayAroma}</span></div>
+        ${hasGusto ? `<div class="plant-info-row"><span class="key">Gusto</span><span class="val">${p.gusto}</span></div>` : ''}
+        ${hasEfecto ? `<div class="plant-info-row"><span class="key">Efecto</span><span class="val">${p.efecto}</span></div>` : ''}
+        ${hasColorHoja ? `<div class="plant-info-row"><span class="key">Color hoja</span><span class="val">${p.colorHoja}</span></div>` : ''}
+        ${hasPerfil ? `<div class="plant-desc">${p.perfil}</div>` : ''}
+      </div>
+      ` : ''}
+    </div>
+
+    <!-- Photo gallery (loaded async) -->
+    <div id="plant-photos-${eid}" class="photo-gallery plant-photos-inline" style="padding:.5rem 1.1rem;"></div>
+    <script>renderPhotoGallery('${p.id}','plant-photos-${eid}',false);<\/script>
+
+    <div class="plant-footer">
+      ${hasExtra ? `<button class="btn-plant-action" onclick="togglePlant('${eid}')" style="margin-right:auto; color:var(--text2);">⇕ Info</button>` : ''}
+      <button class="btn-plant-action" onclick="openPlantModal('${eid}')">Editar</button>
+      <button class="btn-plant-action del" onclick="deletePlant('${eid}')">✕</button>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════
+//  MODALS (GROUP & PLANT)
+// ══════════════════════════════════════════════════
+function openGroupModal(gid){
+  const g=gid?groups.find(x=>x.id===gid):null;
+  document.getElementById('mg-title').textContent=g?'Editar grupo':'Nuevo grupo';
+  document.getElementById('mg-nombre').value=g?g.nombre:'';
+  document.getElementById('mg-desc').value=g?(g.desc||''):'';
+  document.getElementById('mg-color').value=g?g.color:'#7fb85a';
+  document.getElementById('mg-editing-id').value=g?g.id:'';
+  document.getElementById('mg-return-to-plant').value=''; // normal open, no return
+  buildSwatches('mg-color-row','mg-color');
+  document.getElementById('modal-group').classList.add('open');
+  setTimeout(()=>document.getElementById('mg-nombre').focus(),200);
+}
+function confirmGroup(){
+  const nombre=document.getElementById('mg-nombre').value.trim();
+  if(!nombre){showToast('⚠ Ingresá un nombre.',true);return;}
+  const eid=document.getElementById('mg-editing-id').value;
+  const returnToPlant=document.getElementById('mg-return-to-plant').value==='1';
+  let newId = eid;
+  
+  if(eid){
+    const g=groups.find(x=>x.id===eid);
+    g.nombre=nombre;g.desc=document.getElementById('mg-desc').value.trim();g.color=document.getElementById('mg-color').value;
+  } else {
+    if(groups.find(g=>g.nombre===nombre)){showToast('⚠ Ya existe ese grupo.',true);return;}
+    newId = 'g_'+Date.now();
+    groups.push({id:newId,nombre,desc:document.getElementById('mg-desc').value.trim(),color:document.getElementById('mg-color').value});
+  }
+  
+  scheduleSave();
+  document.getElementById('mg-return-to-plant').value='';
+  closeModal('modal-group');
+  populateGroupSelect('input-grupo',true);
+  filterPlantsByGroup();
+  
+  if(!eid && document.getElementById('tab-cosechar').classList.contains('active')) {
+    document.getElementById('input-grupo').value = newId;
+    filterPlantsByGroup();
+  }
+
+  if(document.getElementById('tab-cosechas').classList.contains('active'))renderGroupsIndex();
+  showToast(eid?'Grupo actualizado':`✓ "${nombre}" creado`);
+
+  // If called from plant modal, re-open it and pre-select the new group
+  if(returnToPlant){
+    document.getElementById('modal-plant').classList.add('open');
+    populatePlantGroupSel('mp-grupo', newId);
+    showToast(`✓ Grupo "${nombre}" creado — ya está seleccionado`);
+  }
+}
+function deleteGroup(gid){
+  const g=groups.find(x=>x.id===gid);
+  confirmDanger(`Eliminar "${g.nombre}"`,'Esta acción enviará el grupo a la papelera (las plantas quedarán sin grupo).',()=>{
+    plants.forEach(p=>{if(p.grupoId===gid)p.grupoId=null;});
+    groups=groups.filter(x=>x.id!==gid);
+    moveToTrash('group', g, `Grupo ${g.nombre}`);
+    populateGroupSelect('input-grupo',true);filterPlantsByGroup();
+    renderGroupsIndex();
+  });
+}
+
+function updSativa(){const v=document.getElementById('mp-sativa').value;document.getElementById('mp-sv').textContent=v;document.getElementById('mp-iv').textContent=100-v;}
+
+function openPlantModal(pid,presetGid){
+  const p=pid?plants.find(x=>x.id===pid):null;
+  document.getElementById('mp-title').textContent=p?'Editar planta':'Nueva planta';
+  document.getElementById('mp-editing-id').value=p?p.id:'';
+  document.getElementById('mp-nombre').value=p?p.nombre:'';
+  document.getElementById('mp-color').value=p?p.color:'#7fb85a';
+  document.getElementById('mp-sativa').value=p?p.sativa:50;
+  document.getElementById('mp-thc').value=p?(p.thc||''):'';
+  document.getElementById('mp-floracion').value=p?(p.floracion||''):'';
+  document.getElementById('mp-origen').value=p?(p.origen||''):'';
+  document.getElementById('mp-breeder').value=p?(p.breeder||''):'';
+  
+  let combinedAroma = p ? p.aroma : '';
+  if (p && p.olor && p.olor !== '—') {
+      if (combinedAroma && combinedAroma !== '—' && combinedAroma !== p.olor) {
+          combinedAroma += ' · ' + p.olor;
+      } else {
+          combinedAroma = p.olor;
+      }
+  }
+  document.getElementById('mp-aroma').value = combinedAroma !== '—' ? (combinedAroma || '') : '';
+  
+  document.getElementById('mp-gusto').value=p?(p.gusto||''):'';
+  document.getElementById('mp-efecto').value=p?(p.efecto||''):'';
+  document.getElementById('mp-colorhoja').value=p?(p.colorhoja||p.colorHoja||''):'';
+  document.getElementById('mp-perfil').value=p?(p.perfil||''):'';
+  
+  updSativa();
+  const gid=p?p.grupoId:(presetGid&&presetGid!=='__ungrouped__'?presetGid:null);
+  populatePlantGroupSel('mp-grupo',gid);buildSwatches('mp-color-row','mp-color');
+  
+  document.getElementById('ai-strain-name').value = p ? p.nombre : '';
+  document.getElementById('mp-nombre').dataset.manual = p ? '1' : '';
+  document.getElementById('ai-strain-source').value = '';
+  document.getElementById('ai-error').style.display = 'none';
+  document.getElementById('modal-plant').classList.add('open');
+  // Load photos
+  currentPhotoPlantId = p ? p.id : null;
+  document.getElementById('mp-photo-gallery').innerHTML = '';
+  if (p) renderPhotoGallery(p.id, 'mp-photo-gallery', true);
+  setTimeout(()=>document.getElementById('ai-strain-name').focus(),200);
+}
+
+function confirmPlant(){
+  const nombre=document.getElementById('mp-nombre').value.trim();
+  if(!nombre){showToast('⚠ Ingresá el nombre.',true);return;}
+  const eid=document.getElementById('mp-editing-id').value;
+  const sativa=parseInt(document.getElementById('mp-sativa').value);
+  
+  const data={
+    nombre,grupoId:document.getElementById('mp-grupo').value||null,color:document.getElementById('mp-color').value,
+    sativa,indica:100-sativa,
+    thc:document.getElementById('mp-thc').value.trim()||'—',cbd:'—',
+    floracion:document.getElementById('mp-floracion').value.trim()||'—',
+    origen:document.getElementById('mp-origen').value.trim()||'—',
+    breeder:document.getElementById('mp-breeder').value.trim()||'—',
+    aroma:document.getElementById('mp-aroma').value.trim()||'—',
+    gusto:document.getElementById('mp-gusto').value.trim()||'—',
+    efecto:document.getElementById('mp-efecto').value.trim()||'—',
+    colorHoja:document.getElementById('mp-colorhoja').value.trim()||'—',
+    perfil:document.getElementById('mp-perfil').value.trim()
+  };
+  
+  if(eid){
+      const idx=plants.findIndex(p=>p.id===eid);
+      plants[idx]={...plants[idx],...data};
+  } else {
+      if(plants.find(p=>p.nombre===nombre)){showToast('⚠ Ya existe esa planta.',true);return;}
+      plants.push({id:'p_'+Date.now(),...data});
+  }
+  
+  scheduleSave();closeModal('modal-plant');filterPlantsByGroup();
+  
+  if(!eid && document.getElementById('tab-cosechar').classList.contains('active')) {
+    document.getElementById('input-planta').value = nombre;
+  }
+  
+  if(document.getElementById('tab-cosechas').classList.contains('active'))renderGroupsIndex();
+  updateInicioUI();
+  showToast(eid?'Planta actualizada':`✓ ${nombre} agregada`);
+}
+
+function deletePlant(pid){
+  const p=plants.find(x=>x.id===pid);
+  confirmDanger(`Eliminar "${p.nombre}"`,'Esta acción enviará la planta a la papelera. Las cosechas asociadas se conservan.',()=>{
+    plants=plants.filter(x=>x.id!==pid);
+    moveToTrash('plant', p, `Planta ${p.nombre}`);
+    filterPlantsByGroup();
+    updateInicioUI();
+    renderGroupsIndex();
+  });
+}
+
+// ══════════════════════════════════════════════════
+//  RESUMEN
+// ══════════════════════════════════════════════════
+function populateDivisorSelect() {
+  const sel = document.getElementById('resumen-divisor');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '';
+  for (let i = 1; i <= 45; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = i;
+    sel.appendChild(o);
+  }
+  if (prev) sel.value = prev;
+}
+
+function renderResumen(){
+  populateDivisorSelect();
+  const div = parseInt(document.getElementById('resumen-divisor').value) || 1;
+  const isDivided = div > 1;
+  const fmt = (v) => (v / div).toFixed(1);
+
+  const totals = plantTotals();
+  const secos  = entries.filter(e=>e.estado==='seco');
+  const totalDry   = secos.reduce((s,e)=>s+(e.pesoSeco||0),0);
+  const secandoN   = entries.filter(e=>e.estado==='secando').length;
+  const ratios     = secos.filter(e=>e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+  const avgRatio   = ratios.length ? ratios.reduce((a,b)=>a+b,0)/ratios.length : null;
+  const bestPlant  = Object.entries(totals).sort((a,b)=>b[1].dry-a[1].dry)[0];
+
+  let groupsHtml = '';
+  const maxVal = Math.max(...Object.values(totals).map(t=>t.dry+t.drying), 1);
+
+  // 1. Grupos
+  groups.forEach(g => {
+    const gPlants = plants.filter(p=>p.grupoId===g.id);
+    if (!gPlants.length) return;
+
+    const gDry    = gPlants.reduce((s,p)=>s+(totals[p.nombre]?.dry||0), 0);
+    const gDrying = gPlants.reduce((s,p)=>s+(totals[p.nombre]?.drying||0), 0);
+    const gSecos  = entries.filter(e=>gPlants.find(p=>p.nombre===e.planta)&&e.estado==='seco');
+    const gRatios = gSecos.filter(e=>e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+    const gRatio  = gRatios.length ? gRatios.reduce((a,b)=>a+b,0)/gRatios.length : null;
+    const gBest   = gPlants.map(p=>({n:p.nombre, d:totals[p.nombre]?.dry||0})).sort((a,b)=>b.d-a.d)[0];
+
+    const accId = 'res-grp-' + g.id;
+    const isOpen = openAccs.has(accId);
+
+    const bars = gPlants.map(p=>{
+      const t=totals[p.nombre]||{dry:0,drying:0};
+      const pd=(t.dry/maxVal*100).toFixed(1),pg=(t.drying/maxVal*100).toFixed(1);
+      return `<div class="bar-row">
+        <div class="bar-top">
+          <div class="bar-name"><span style="width:8px;height:8px;border-radius:50%;background:${p.color};display:inline-block;flex-shrink:0"></span>${p.nombre}</div>
+          <div class="bar-vals">
+            ${t.dry>0?`<span class="bv-dry">${t.dry.toFixed(1)}g${isDivided?` <span style="color:var(--text3)">/ ${fmt(t.dry)}g</span>`:''}</span>`:''}
+            ${t.drying>0?`<span class="bv-drying">${t.drying.toFixed(1)}g sec.${isDivided?` <span style="color:var(--text3)">/ ${fmt(t.drying)}g</span>`:''}</span>`:''}
+            ${t.dry===0&&t.drying===0?`<span style="color:var(--text3)">sin datos</span>`:''}
+          </div>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill-dry" style="width:${pd}%;background:${p.color}"></div>
+          <div class="bar-fill-drying" style="width:${pg}%;background:${p.color}"></div>
+        </div>
+      </div>`;
+    }).join('');
+
+    groupsHtml += `
+    <div class="acc-box">
+      <div class="acc-header ${isOpen?'open':''}" onclick="toggleAcc('${accId}', this)">
+        <div style="display:flex;align-items:center;gap:.8rem">
+          <div style="width:4px;height:1.5rem;background:${g.color};border-radius:2px;flex-shrink:0"></div>
+          <div><div style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--white)">${g.nombre}</div></div>
+        </div>
+        <span class="acc-arrow" style="color:var(--text3)">▾</span>
+      </div>
+      <div class="acc-content ${isOpen?'open':''}" id="${accId}">
+        
+        <div class="stats-grid mini-stats">
+          <div class="stat-card"><div class="s-label">Seco Total</div><div class="s-val" style="color:var(--accent)">${gDry.toFixed(1)}<span class="s-unit">g</span></div>${isDivided?`<div style="font-size:.7rem;color:var(--text3);margin-top:.2rem">/ ${fmt(gDry)}g</div>`:''}</div>
+          <div class="stat-card"><div class="s-label">En Proceso</div><div class="s-val" style="color:var(--accent2)">${gDrying.toFixed(1)}<span class="s-unit">g</span></div></div>
+          <div class="stat-card"><div class="s-label">Ratio Secado</div><div class="s-val" style="color:var(--accent3)">${gRatio?gRatio.toFixed(0)+'<span class="s-unit">%</span>':'—'}</div></div>
+          <div class="stat-card"><div class="s-label">Mejor Planta</div><div class="s-val" style="font-size:1rem;margin-top:.4rem;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${gBest&&gBest.d>0?gBest.n:'—'}</div></div>
+        </div>
+
+        <div class="legend" style="margin-top:1.5rem">
+          <span><span style="width:12px;height:4px;background:var(--accent);border-radius:2px;display:inline-block"></span>Seco (g)</span>
+          <span><span style="width:12px;height:4px;background:var(--accent2);opacity:.6;border-radius:2px;display:inline-block"></span>Secando (g)</span>
+        </div>
+        ${bars}
+      </div>
+    </div>`;
+  });
+
+  // 2. Plantas sin grupo
+  const ungrouped = plants.filter(p=>!p.grupoId);
+  if(ungrouped.length){
+    const gPlants = ungrouped;
+    const gDry    = gPlants.reduce((s,p)=>s+(totals[p.nombre]?.dry||0), 0);
+    const gDrying = gPlants.reduce((s,p)=>s+(totals[p.nombre]?.drying||0), 0);
+    const gSecos  = entries.filter(e=>gPlants.find(p=>p.nombre===e.planta)&&e.estado==='seco');
+    const gRatios = gSecos.filter(e=>e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+    const gRatio  = gRatios.length ? gRatios.reduce((a,b)=>a+b,0)/gRatios.length : null;
+    const gBest   = gPlants.map(p=>({n:p.nombre, d:totals[p.nombre]?.dry||0})).sort((a,b)=>b.d-a.d)[0];
+
+    const accId = 'res-grp-ungrouped';
+    const isOpen = openAccs.has(accId);
+
+    const bars = gPlants.map(p=>{
+      const t=totals[p.nombre]||{dry:0,drying:0};
+      const pd=(t.dry/maxVal*100).toFixed(1),pg=(t.drying/maxVal*100).toFixed(1);
+      return `<div class="bar-row">
+        <div class="bar-top">
+          <div class="bar-name"><span style="width:8px;height:8px;border-radius:50%;background:${p.color};display:inline-block;flex-shrink:0"></span>${p.nombre}</div>
+          <div class="bar-vals">
+            ${t.dry>0?`<span class="bv-dry">${t.dry.toFixed(1)}g${isDivided?` <span style="color:var(--text3)">/ ${fmt(t.dry)}g</span>`:''}</span>`:''}
+            ${t.drying>0?`<span class="bv-drying">${t.drying.toFixed(1)}g sec.${isDivided?` <span style="color:var(--text3)">/ ${fmt(t.drying)}g</span>`:''}</span>`:''}
+            ${t.dry===0&&t.drying===0?`<span style="color:var(--text3)">sin datos</span>`:''}
+          </div>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill-dry" style="width:${pd}%;background:${p.color}"></div>
+          <div class="bar-fill-drying" style="width:${pg}%;background:${p.color}"></div>
+        </div>
+      </div>`;
+    }).join('');
+
+    groupsHtml += `
+    <div class="acc-box" style="border-style:dashed">
+      <div class="acc-header ${isOpen?'open':''}" onclick="toggleAcc('${accId}', this)">
+        <div style="display:flex;align-items:center;gap:.8rem">
+          <div style="width:4px;height:1.5rem;background:var(--text3);border-radius:2px;flex-shrink:0"></div>
+          <div><div style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--text2)">Sin grupo</div></div>
+        </div>
+        <span class="acc-arrow" style="color:var(--text3)">▾</span>
+      </div>
+      <div class="acc-content ${isOpen?'open':''}" id="${accId}">
+        
+        <div class="stats-grid mini-stats">
+          <div class="stat-card"><div class="s-label">Seco Total</div><div class="s-val" style="color:var(--accent)">${gDry.toFixed(1)}<span class="s-unit">g</span></div>${isDivided?`<div style="font-size:.7rem;color:var(--text3);margin-top:.2rem">/ ${fmt(gDry)}g</div>`:''}</div>
+          <div class="stat-card"><div class="s-label">En Proceso</div><div class="s-val" style="color:var(--accent2)">${gDrying.toFixed(1)}<span class="s-unit">g</span></div></div>
+          <div class="stat-card"><div class="s-label">Ratio Secado</div><div class="s-val" style="color:var(--accent3)">${gRatio?gRatio.toFixed(0)+'<span class="s-unit">%</span>':'—'}</div></div>
+          <div class="stat-card"><div class="s-label">Mejor Planta</div><div class="s-val" style="font-size:1rem;margin-top:.4rem;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${gBest&&gBest.d>0?gBest.n:'—'}</div></div>
+        </div>
+
+        <div class="legend" style="margin-top:1.5rem">
+          <span><span style="width:12px;height:4px;background:var(--accent);border-radius:2px;display:inline-block"></span>Seco (g)</span>
+          <span><span style="width:12px;height:4px;background:var(--accent2);opacity:.6;border-radius:2px;display:inline-block"></span>Secando (g)</span>
+        </div>
+        ${bars}
+      </div>
+    </div>`;
+  }
+
+  // 3. Totales Generales (Acordeón al final)
+  const tgId = 'res-totales';
+  const tgOpen = openAccs.has(tgId);
+  const divNote = isDivided ? `<span style="font-size:.65rem;color:var(--text3);margin-left:.3rem">÷${div}</span>` : '';
+  
+  let totalesHtml = `
+  <div class="acc-box" style="border-color:var(--accent); margin-top:1.8rem">
+    <div class="acc-header ${tgOpen?'open':''}" onclick="toggleAcc('${tgId}', this)" style="background:rgba(127,184,90,.05)">
+      <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--accent)">Totales Generales</div>
+      <span class="acc-arrow" style="color:var(--accent)">▾</span>
+    </div>
+    <div class="acc-content ${tgOpen?'open':''}" id="${tgId}">
+      <div class="stats-grid" style="margin-bottom:0">
+        <div class="stat-card"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent)"></div><div class="s-label">Flor seca${divNote}</div><div class="s-val">${totalDry.toFixed(1)}<span class="s-unit"> g</span>${isDivided?`<div style="font-size:.9rem;color:var(--text3);margin-top:.2rem">${fmt(totalDry)} g ÷${div}</div>`:''}</div><div class="s-sub">${secos.length} cosecha${secos.length!==1?'s':''}</div></div>
+        <div class="stat-card"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent2)"></div><div class="s-label">En proceso</div><div class="s-val" style="color:var(--accent2)">${secandoN}</div><div class="s-sub">cosecha${secandoN!==1?'s':''} secando</div></div>
+        <div class="stat-card"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent3)"></div><div class="s-label">Ratio secado</div><div class="s-val" style="color:var(--accent3)">${avgRatio?avgRatio.toFixed(0)+'<span class="s-unit">%</span>':'—'}</div><div class="s-sub">${ratios.length?'fresco → seco':'sin datos'}</div></div>
+        <div class="stat-card"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--rebel)"></div><div class="s-label">Mejor planta${divNote}</div><div class="s-val" style="font-size:.95rem;margin-top:.3rem">${bestPlant&&bestPlant[1].dry>0?bestPlant[0]:'—'}</div><div class="s-sub">${bestPlant&&bestPlant[1].dry>0?bestPlant[1].dry.toFixed(1)+'g'+(isDivided?' / '+fmt(bestPlant[1].dry)+'g':''):'sin datos'}</div></div>
+      </div>
+    </div>
+  </div>`;
+
+  if (!groupsHtml && totalDry === 0 && secandoN === 0) {
+    document.getElementById('resumen-accordion-list').innerHTML = '<div class="empty-msg">Agregá grupos y plantas para ver estadísticas.</div>';
+  } else {
+    document.getElementById('resumen-accordion-list').innerHTML = groupsHtml + totalesHtml;
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  EXPORT MODAL & PDF
+// ══════════════════════════════════════════════════
+function openExportModal(type) {
+  document.getElementById('export-type').value = type;
+  document.getElementById('export-title').textContent = type === 'csv' ? 'Exportar CSV' : 'Exportar PDF';
+  document.getElementById('export-all').checked = true;
+  
+  let html = groups.map(g => `
+    <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.5rem .7rem;border:1px solid var(--border);border-radius:3px;">
+      <input type="checkbox" class="export-grp-chk" value="${g.id}" checked style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer"/>
+      <span style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text)">
+        <span style="width:8px;height:8px;border-radius:50%;background:${g.color};display:inline-block;flex-shrink:0"></span>${g.nombre}
+      </span>
+    </label>`).join('');
+
+  const ungrouped = plants.filter(p=>!p.grupoId);
+  if (ungrouped.length) {
+     html += `
+     <label style="display:flex;align-items:center;gap:.75rem;cursor:pointer;padding:.5rem .7rem;border:1px solid var(--border);border-radius:3px;">
+      <input type="checkbox" class="export-grp-chk" value="__ungrouped__" checked style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer"/>
+      <span style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--text)">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--text3);display:inline-block;flex-shrink:0"></span>Sin grupo
+      </span>
+    </label>`;
+  }
+
+  document.getElementById('export-group-list').innerHTML = html;
+  document.getElementById('modal-export').classList.add('open');
+}
+function toggleExportAll(checked) { document.querySelectorAll('.export-grp-chk').forEach(c => c.checked = checked); }
+
+function runExport() {
+  const type = document.getElementById('export-type').value;
+  const selectedIds =[...document.querySelectorAll('.export-grp-chk:checked')].map(c => c.value);
+  if (!selectedIds.length) { showToast('⚠ Seleccioná al menos un grupo.', true); return; }
+  closeModal('modal-export');
+  
+  const filteredGroups = groups.filter(g => selectedIds.includes(g.id));
+  const includeUngrouped = selectedIds.includes('__ungrouped__');
+  
+  if (type === 'csv') exportCSV(filteredGroups, includeUngrouped);
+  else exportPDF(filteredGroups, includeUngrouped);
+}
+
+function exportCSV(grps, includeUngrouped) {
+  const sep = ','; const totals = plantTotals(); const rows =[];
+  rows.push(['Grupo','Planta','Flor Seca (g)','Secando (g)'].join(sep));
+  
+  grps.forEach(g => {
+    plants.filter(p=>p.grupoId===g.id).forEach(p => {
+      const t=totals[p.nombre]||{dry:0,drying:0};
+      rows.push([`"${g.nombre}"`, `"${p.nombre}"`, t.dry.toFixed(1), t.drying.toFixed(1)].join(sep));
+    });
+  });
+  
+  if (includeUngrouped) {
+     plants.filter(p=>!p.grupoId).forEach(p => {
+        const t=totals[p.nombre]||{dry:0,drying:0};
+        rows.push([`"Sin grupo"`, `"${p.nombre}"`, t.dry.toFixed(1), t.drying.toFixed(1)].join(sep));
+     });
+  }
+
+  const blob = new Blob(['\uFEFF'+rows.join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `jardin-resumen-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click(); showToast('✓ CSV descargado');
+}
+
+function exportPDF(grps, includeUngrouped) {
+  const totals = plantTotals();
+  const date   = new Date().toLocaleDateString('es-UY');
+
+  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body{font-family:Georgia,serif;color:#1a2116;padding:2rem;font-size:12px;max-width:900px;margin:0 auto}
+    h1{font-size:1.8rem;color:#0f130e;border-bottom:2px solid #7fb85a;padding-bottom:.5rem;margin-bottom:.3rem}
+    .subtitle{font-size:.7rem;color:#5a6b50;letter-spacing:.15em;text-transform:uppercase;margin-bottom:2rem}
+    .date{font-size:.7rem;color:#8fa07e;margin-bottom:2rem}
+    h2{font-size:1rem;color:#1a2116;background:#e8f0e0;padding:.4rem .8rem;border-left:4px solid #7fb85a;margin:1.5rem 0 .8rem}
+    table{width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:11px}
+    th{background:#2d3d27;color:#d4dcc8;text-align:left;padding:.4rem .6rem;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase}
+    td{padding:.4rem .6rem;border-bottom:1px solid #e0e8d8;vertical-align:middle}
+    tr:nth-child(even) td{background:#f5f9f0}
+    .num{text-align:right;font-family:monospace;font-size:12px}
+    .subtotal td{background:#d4e8c0!important;font-weight:bold;border-top:1px solid #90cc66}
+    .total-section{background:#1a2116;color:#d4dcc8;padding:1.2rem;border-radius:4px;margin-top:1.5rem;page-break-inside:avoid}
+    .total-section h3{margin:0 0 .8rem;color:#7fb85a;font-size:.85rem;letter-spacing:.1em;text-transform:uppercase}
+    .total-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+    .total-item .val{font-size:1.5rem;color:#7fb85a;font-family:Georgia,serif;line-height:1}
+    .total-item .lbl{font-size:.6rem;color:#8fa07e;text-transform:uppercase;letter-spacing:.1em;margin-top:.3rem}
+    .footer{margin-top:2rem;font-size:.7rem;color:#8fa07e;text-align:center;border-top:1px solid #ccc;padding-top:.8rem;page-break-inside:avoid}
+  </style></head><body>
+  <h1>🌿 Jardín</h1>
+  <div class="subtitle">Registro de cosecha · ${currentUser}</div>
+  <div class="date">Exportado el ${date}</div>`;
+
+  grps.forEach(g => {
+    const gPlants = plants.filter(p => p.grupoId === g.id);
+    if (!gPlants.length) return;
+    const gDry    = gPlants.reduce((s,p)=>s+(totals[p.nombre]?.dry||0),0);
+    const gDrying = gPlants.reduce((s,p)=>s+(totals[p.nombre]?.drying||0),0);
+    const gSecos  = entries.filter(e => gPlants.find(p=>p.nombre===e.planta) && e.estado==='seco');
+    const gRatios = gSecos.filter(e=>e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+    const gRatio  = gRatios.length ? (gRatios.reduce((a,b)=>a+b,0)/gRatios.length).toFixed(1)+'%' : '—';
+
+    html += `<h2>${g.nombre}${g.desc?' — '+g.desc:''}</h2>
+    <table><thead><tr><th>Planta</th><th class="num">Flor seca (g)</th><th class="num">Secando (g)</th><th class="num">Cosechas</th><th class="num">Ratio secado</th></tr></thead><tbody>`;
+
+    gPlants.forEach(p => {
+      const t = totals[p.nombre]||{dry:0,drying:0};
+      const pe = entries.filter(e=>e.planta===p.nombre&&e.estado==='seco');
+      const pr = pe.filter(e=>e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+      const ratio = pr.length ? (pr.reduce((a,b)=>a+b,0)/pr.length).toFixed(1)+'%' : '—';
+      html += `<tr><td>${p.nombre}</td><td class="num">${t.dry.toFixed(1)}</td><td class="num">${t.drying>0?t.drying.toFixed(1):'—'}</td><td class="num">${pe.length}</td><td class="num">${ratio}</td></tr>`;
+    });
+
+    html += `<tr class="subtotal"><td>Subtotal</td><td class="num">${gDry.toFixed(1)}</td><td class="num">${gDrying>0?gDrying.toFixed(1):'—'}</td><td class="num">${gSecos.length}</td><td class="num">${gRatio}</td></tr>`;
+    html += '</tbody></table>';
+  });
+
+  if (includeUngrouped) {
+    const ung = plants.filter(p=>!p.grupoId);
+    if (ung.length) {
+      const gDry    = ung.reduce((s,p)=>s+(totals[p.nombre]?.dry||0),0);
+      const gDrying = ung.reduce((s,p)=>s+(totals[p.nombre]?.drying||0),0);
+      const gSecos  = entries.filter(e => ung.find(p=>p.nombre===e.planta) && e.estado==='seco');
+      
+      html += `<h2>Sin grupo</h2><table><thead><tr><th>Planta</th><th class="num">Flor seca (g)</th><th class="num">Secando (g)</th><th class="num">Cosechas</th><th class="num">Ratio secado</th></tr></thead><tbody>`;
+      ung.forEach(p => {
+        const t = totals[p.nombre]||{dry:0,drying:0};
+        const pe = entries.filter(e=>e.planta===p.nombre&&e.estado==='seco');
+        const pr = pe.filter(e=>e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+        const ratio = pr.length ? (pr.reduce((a,b)=>a+b,0)/pr.length).toFixed(1)+'%' : '—';
+        html += `<tr><td>${p.nombre}</td><td class="num">${t.dry.toFixed(1)}</td><td class="num">${t.drying>0?t.drying.toFixed(1):'—'}</td><td class="num">${pe.length}</td><td class="num">${ratio}</td></tr>`;
+      });
+      html += `<tr class="subtotal"><td>Subtotal</td><td class="num">${gDry.toFixed(1)}</td><td class="num">${gDrying>0?gDrying.toFixed(1):'—'}</td><td class="num">${gSecos.length}</td><td class="num">—</td></tr>`;
+      html += '</tbody></table>';
+    }
+  }
+
+  const totalDry   = entries.filter(e=>e.estado==='seco').reduce((s,e)=>s+(e.pesoSeco||0),0);
+  const secandoN   = entries.filter(e=>e.estado==='secando').length;
+  const allRatios  = entries.filter(e=>e.estado==='seco'&&e.pesoFresco&&e.pesoSeco).map(e=>e.pesoSeco/e.pesoFresco*100);
+  const avgRatio   = allRatios.length ? (allRatios.reduce((a,b)=>a+b,0)/allRatios.length).toFixed(1)+'%' : '—';
+  const best       = Object.entries(totals).sort((a,b)=>b[1].dry-a[1].dry)[0];
+
+  html += `<div class="total-section"><h3>Totales generales</h3>
+    <div class="total-grid">
+      <div class="total-item"><div class="val">${totalDry.toFixed(1)}g</div><div class="lbl">Flor seca total</div></div>
+      <div class="total-item"><div class="val">${secandoN}</div><div class="lbl">Secando</div></div>
+      <div class="total-item"><div class="val">${avgRatio}</div><div class="lbl">Ratio prom. secado</div></div>
+      <div class="total-item"><div class="val" style="font-size:1rem;margin-top:.4rem;overflow:hidden;text-overflow:ellipsis">${best&&best[1].dry>0?best[0]:'—'}</div><div class="lbl">Mejor planta</div></div>
+    </div></div>
+  <div class="footer">Generado por Jardín · Registro de cosecha · ${date}</div>
+  </body></html>`;
+
+  // El método iframe asegura que se pueda imprimir/guardar el PDF sin importar los bloqueadores de pop-ups en PC o Celular
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = 'none';
+  document.body.appendChild(iframe);
+  
+  iframe.contentWindow.document.open();
+  iframe.contentWindow.document.write(html);
+  iframe.contentWindow.document.close();
+  
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => document.body.removeChild(iframe), 2000);
+  }, 500);
+
+  showToast('✓ PDF listo para imprimir/guardar');
+}
+
+// ══════════════════════════════════════════════════
+//  IA — Base de datos local + Pollinations fallback
+// ══════════════════════════════════════════════════
+const STRAIN_DB = {
+"og kush":{nombre:"OG Kush",sativa:25,indica:75,thc:"19-26%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"Desconocido",aroma:"Terroso, pino, cítrico",gusto:"Lima, madera, especiado",efecto:"Relajante, eufórico, feliz",colorHoja:"Verde oscuro",perfil:"Híbrido índica dominante legendario"},
+"white widow":{nombre:"White Widow",sativa:40,indica:60,thc:"18-25%",floracion:"8-9 semanas",origen:"Países Bajos",breeder:"Green House Seeds",aroma:"Terroso, amaderado, pungente",gusto:"Dulce, amaderado, especiado",efecto:"Eufórico, energético, creativo",colorHoja:"Verde con tricomas blancos",perfil:"Híbrido equilibrado clásico"},
+"blue dream":{nombre:"Blue Dream",sativa:60,indica:40,thc:"17-24%",floracion:"9-10 semanas",origen:"California, EE.UU.",breeder:"Desconocido",aroma:"Arándano, dulce, frutal",gusto:"Arándano, vainilla, dulce",efecto:"Eufórico, creativo, relajante suave",colorHoja:"Verde con tonos azulados",perfil:"Híbrido sativa dominante muy popular"},
+"gorilla glue":{nombre:"Gorilla Glue #4",sativa:37,indica:63,thc:"25-30%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"GG Strains",aroma:"Pino, terroso, diesel",gusto:"Chocolate, café, terroso",efecto:"Relajante pesado, eufórico, somnoliento",colorHoja:"Verde oscuro con resina abundante",perfil:"Híbrido índica potente"},
+"gorilla glue #4":{nombre:"Gorilla Glue #4",sativa:37,indica:63,thc:"25-30%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"GG Strains",aroma:"Pino, terroso, diesel",gusto:"Chocolate, café, terroso",efecto:"Relajante pesado, eufórico, somnoliento",colorHoja:"Verde oscuro con resina abundante",perfil:"Híbrido índica potente"},
+"gg4":{nombre:"Gorilla Glue #4",sativa:37,indica:63,thc:"25-30%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"GG Strains",aroma:"Pino, terroso, diesel",gusto:"Chocolate, café, terroso",efecto:"Relajante pesado, eufórico, somnoliento",colorHoja:"Verde oscuro con resina abundante",perfil:"Híbrido índica potente"},
+"wedding cake":{nombre:"Wedding Cake",sativa:40,indica:60,thc:"22-27%",floracion:"7-9 semanas",origen:"EE.UU.",breeder:"Seed Junky Genetics",aroma:"Vainilla, dulce, terroso",gusto:"Vainilla, crema, dulce",efecto:"Relajante, eufórico, feliz",colorHoja:"Verde con tonos púrpura",perfil:"Híbrido índica cremoso y potente"},
+"gelato":{nombre:"Gelato",sativa:45,indica:55,thc:"20-25%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"Cookie Fam / Sherbinski",aroma:"Dulce, cítrico, frutal",gusto:"Helado, cítrico, lavanda",efecto:"Eufórico, relajante, creativo",colorHoja:"Verde oscuro con púrpura y naranja",perfil:"Híbrido equilibrado de sabor premium"},
+"gelato 33":{nombre:"Gelato #33",sativa:45,indica:55,thc:"20-25%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"Cookie Fam / Sherbinski",aroma:"Dulce, cítrico, frutal",gusto:"Helado, cítrico, lavanda",efecto:"Eufórico, relajante, creativo",colorHoja:"Verde oscuro con púrpura y naranja",perfil:"Híbrido equilibrado de sabor premium"},
+"gelato 41":{nombre:"Gelato #41",sativa:45,indica:55,thc:"20-27%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"Cookie Fam",aroma:"Dulce, lavanda, cítrico",gusto:"Dulce, cremoso, mentolado",efecto:"Eufórico, relajante, feliz",colorHoja:"Verde con púrpura intenso",perfil:"Fenotipo premium del Gelato"},
+"northern lights":{nombre:"Northern Lights",sativa:10,indica:90,thc:"16-21%",floracion:"7-8 semanas",origen:"Países Bajos / EE.UU.",breeder:"Sensi Seeds",aroma:"Dulce, especiado, pino",gusto:"Dulce, terroso, pino",efecto:"Relajante profundo, somnoliento, feliz",colorHoja:"Verde oscuro",perfil:"Índica pura clásica"},
+"amnesia haze":{nombre:"Amnesia Haze",sativa:80,indica:20,thc:"20-25%",floracion:"10-12 semanas",origen:"Países Bajos",breeder:"Soma Seeds",aroma:"Cítrico, terroso, limón",gusto:"Cítrico, dulce, terroso",efecto:"Energético, eufórico, cerebral",colorHoja:"Verde claro",perfil:"Sativa dominante potente"},
+"jack herer":{nombre:"Jack Herer",sativa:55,indica:45,thc:"18-24%",floracion:"8-10 semanas",origen:"Países Bajos",breeder:"Sensi Seeds",aroma:"Pino, especiado, terroso",gusto:"Pino, madera, cítrico",efecto:"Cerebral, creativo, energético",colorHoja:"Verde medio",perfil:"Híbrido sativa legendario"},
+"girl scout cookies":{nombre:"Girl Scout Cookies (GSC)",sativa:40,indica:60,thc:"25-28%",floracion:"9-10 semanas",origen:"California, EE.UU.",breeder:"Cookie Fam",aroma:"Dulce, terroso, menta",gusto:"Dulce, galleta, chocolate",efecto:"Eufórico, relajante, feliz",colorHoja:"Verde con púrpura",perfil:"Híbrido potente y sabroso"},
+"gsc":{nombre:"Girl Scout Cookies (GSC)",sativa:40,indica:60,thc:"25-28%",floracion:"9-10 semanas",origen:"California, EE.UU.",breeder:"Cookie Fam",aroma:"Dulce, terroso, menta",gusto:"Dulce, galleta, chocolate",efecto:"Eufórico, relajante, feliz",colorHoja:"Verde con púrpura",perfil:"Híbrido potente y sabroso"},
+"sour diesel":{nombre:"Sour Diesel",sativa:70,indica:30,thc:"20-25%",floracion:"10-11 semanas",origen:"EE.UU.",breeder:"Desconocido",aroma:"Diesel, cítrico, pungente",gusto:"Diesel, ácido, cítrico",efecto:"Energético, cerebral, eufórico",colorHoja:"Verde claro",perfil:"Sativa dominante clásica"},
+"granddaddy purple":{nombre:"Granddaddy Purple",sativa:20,indica:80,thc:"17-24%",floracion:"8-11 semanas",origen:"California, EE.UU.",breeder:"Ken Estes",aroma:"Uva, bayas, dulce",gusto:"Uva, bayas, dulce",efecto:"Relajante, somnoliento, eufórico",colorHoja:"Púrpura intenso",perfil:"Índica dominante con colores púrpura"},
+"gdp":{nombre:"Granddaddy Purple",sativa:20,indica:80,thc:"17-24%",floracion:"8-11 semanas",origen:"California, EE.UU.",breeder:"Ken Estes",aroma:"Uva, bayas, dulce",gusto:"Uva, bayas, dulce",efecto:"Relajante, somnoliento, eufórico",colorHoja:"Púrpura intenso",perfil:"Índica dominante con colores púrpura"},
+"purple haze":{nombre:"Purple Haze",sativa:70,indica:30,thc:"17-20%",floracion:"8-9 semanas",origen:"Colombia / Tailandia",breeder:"Desconocido",aroma:"Terroso, dulce, bayas",gusto:"Dulce, terroso, frutal",efecto:"Cerebral, eufórico, creativo",colorHoja:"Verde con tonos púrpura",perfil:"Sativa clásica psicodélica"},
+"skunk #1":{nombre:"Skunk #1",sativa:35,indica:65,thc:"15-19%",floracion:"7-8 semanas",origen:"Países Bajos",breeder:"Cultivators Choice / Sensi Seeds",aroma:"Skunk, terroso, dulce",gusto:"Dulce, terroso, ácido",efecto:"Eufórico, relajante, feliz",colorHoja:"Verde medio",perfil:"Híbrido clásico estable y fácil de cultivar"},
+"ak-47":{nombre:"AK-47",sativa:65,indica:35,thc:"20-24%",floracion:"8-9 semanas",origen:"Países Bajos",breeder:"Serious Seeds",aroma:"Terroso, dulce, floral",gusto:"Dulce, floral, terroso",efecto:"Relajante, feliz, social",colorHoja:"Verde claro",perfil:"Híbrido sativa premiado mundialmente"},
+"ak47":{nombre:"AK-47",sativa:65,indica:35,thc:"20-24%",floracion:"8-9 semanas",origen:"Países Bajos",breeder:"Serious Seeds",aroma:"Terroso, dulce, floral",gusto:"Dulce, floral, terroso",efecto:"Relajante, feliz, social",colorHoja:"Verde claro",perfil:"Híbrido sativa premiado mundialmente"},
+"critical":{nombre:"Critical",sativa:40,indica:60,thc:"18-22%",floracion:"6-7 semanas",origen:"España",breeder:"Royal Queen Seeds",aroma:"Cítrico, dulce, terroso",gusto:"Dulce, cítrico, especiado",efecto:"Relajante, feliz, somnoliento",colorHoja:"Verde claro con cogollos densos",perfil:"Híbrido de floración rápida y alto rendimiento"},
+"critical mass":{nombre:"Critical Mass",sativa:20,indica:80,thc:"19-22%",floracion:"6-8 semanas",origen:"España / Países Bajos",breeder:"Mr. Nice Seeds",aroma:"Dulce, cítrico, miel",gusto:"Dulce, terroso, frutal",efecto:"Relajante profundo, somnoliento, feliz",colorHoja:"Verde medio",perfil:"Índica de producción masiva"},
+"super lemon haze":{nombre:"Super Lemon Haze",sativa:70,indica:30,thc:"19-25%",floracion:"9-10 semanas",origen:"Países Bajos",breeder:"Green House Seeds",aroma:"Limón, cítrico, dulce",gusto:"Limón, lima, dulce",efecto:"Energético, eufórico, cerebral",colorHoja:"Verde claro con pistilos dorados",perfil:"Sativa premiada con intenso sabor limón"},
+"cheese":{nombre:"Cheese",sativa:40,indica:60,thc:"15-20%",floracion:"8-9 semanas",origen:"Reino Unido",breeder:"Exodus",aroma:"Queso fuerte, terroso, ácido",gusto:"Queso, cremoso, terroso",efecto:"Relajante, eufórico, social",colorHoja:"Verde medio",perfil:"Híbrido británico de aroma inconfundible"},
+"bubba kush":{nombre:"Bubba Kush",sativa:20,indica:80,thc:"15-22%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"Desconocido",aroma:"Chocolate, café, terroso",gusto:"Dulce, hashish, café",efecto:"Relajante pesado, somnoliento",colorHoja:"Verde oscuro con tonos púrpura",perfil:"Índica premium relajante"},
+"zkittlez":{nombre:"Zkittlez",sativa:30,indica:70,thc:"20-24%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"3rd Gen Family / Terp Hogz",aroma:"Frutal, tropical, dulce",gusto:"Caramelo frutal, uva, tropical",efecto:"Relajante, feliz, eufórico",colorHoja:"Verde con púrpura y naranja",perfil:"Índica de sabor frutal extraordinario"},
+"runtz":{nombre:"Runtz",sativa:50,indica:50,thc:"24-29%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"Cookies / Runtz Crew",aroma:"Dulce, frutal, tropical",gusto:"Caramelo, frutal, cremoso",efecto:"Eufórico, relajante, risueño",colorHoja:"Verde, púrpura y naranja",perfil:"Híbrido 50/50 ultra premium"},
+"mimosa":{nombre:"Mimosa",sativa:70,indica:30,thc:"19-27%",floracion:"9-10 semanas",origen:"EE.UU.",breeder:"Symbiotic Genetics",aroma:"Cítrico, tropical, naranja",gusto:"Naranja, cítrico, tropical",efecto:"Energético, eufórico, feliz",colorHoja:"Verde con pistilos naranjas",perfil:"Sativa dominante frutal y energizante"},
+"do-si-dos":{nombre:"Do-Si-Dos",sativa:30,indica:70,thc:"25-30%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Archive Seed Bank",aroma:"Dulce, terroso, floral",gusto:"Dulce, mentolado, lima",efecto:"Relajante, eufórico, sedante",colorHoja:"Verde con púrpura y lavanda",perfil:"Índica dominante muy potente"},
+"dosidos":{nombre:"Do-Si-Dos",sativa:30,indica:70,thc:"25-30%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Archive Seed Bank",aroma:"Dulce, terroso, floral",gusto:"Dulce, mentolado, lima",efecto:"Relajante, eufórico, sedante",colorHoja:"Verde con púrpura y lavanda",perfil:"Índica dominante muy potente"},
+"bruce banner":{nombre:"Bruce Banner",sativa:60,indica:40,thc:"24-30%",floracion:"8-10 semanas",origen:"EE.UU.",breeder:"Dark Horse Genetics",aroma:"Diesel, dulce, terroso",gusto:"Dulce, diesel, frutal",efecto:"Eufórico intenso, creativo, energético",colorHoja:"Verde brillante",perfil:"Híbrido sativa ultra potente"},
+"pineapple express":{nombre:"Pineapple Express",sativa:60,indica:40,thc:"18-25%",floracion:"7-8 semanas",origen:"EE.UU.",breeder:"G13 Labs",aroma:"Piña, tropical, cedro",gusto:"Piña, mango, tropical",efecto:"Energético, feliz, creativo",colorHoja:"Verde claro",perfil:"Híbrido tropical energizante"},
+"strawberry cough":{nombre:"Strawberry Cough",sativa:80,indica:20,thc:"18-23%",floracion:"9-10 semanas",origen:"EE.UU.",breeder:"Kyle Kushman",aroma:"Fresa, dulce, terroso",gusto:"Fresa, dulce, frutal",efecto:"Eufórico, energético, social",colorHoja:"Verde con pistilos rojizos",perfil:"Sativa pura con sabor a fresa"},
+"trainwreck":{nombre:"Trainwreck",sativa:65,indica:35,thc:"18-25%",floracion:"8-10 semanas",origen:"California, EE.UU.",breeder:"Desconocido",aroma:"Pino, limón, picante",gusto:"Pino, mentolado, cítrico",efecto:"Eufórico, creativo, energético",colorHoja:"Verde claro con resina",perfil:"Sativa híbrida de efecto rápido e intenso"},
+"lemon haze":{nombre:"Lemon Haze",sativa:70,indica:30,thc:"17-22%",floracion:"8-9 semanas",origen:"Países Bajos",breeder:"Green House Seeds",aroma:"Limón, cítrico, dulce",gusto:"Limón fresco, dulce",efecto:"Energético, cerebral, feliz",colorHoja:"Verde lima",perfil:"Sativa con aroma a limón intenso"},
+"banana kush":{nombre:"Banana Kush",sativa:40,indica:60,thc:"18-25%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"Desconocido",aroma:"Banana, dulce, tropical",gusto:"Banana, dulce, tropical",efecto:"Relajante, eufórico, feliz",colorHoja:"Verde claro",perfil:"Índica dominante de sabor tropical"},
+"forbidden fruit":{nombre:"Forbidden Fruit",sativa:30,indica:70,thc:"23-26%",floracion:"9-10 semanas",origen:"EE.UU.",breeder:"Desconocido",aroma:"Cereza, mango, frutal",gusto:"Tropical, cítrico, dulce",efecto:"Relajante, somnoliento, eufórico",colorHoja:"Púrpura oscuro con verde",perfil:"Índica dominante de sabor exótico"},
+"purple punch":{nombre:"Purple Punch",sativa:10,indica:90,thc:"18-25%",floracion:"7-8 semanas",origen:"EE.UU.",breeder:"Supernova Gardens",aroma:"Uva, arándano, dulce",gusto:"Uva, muffin de arándano, vainilla",efecto:"Relajante profundo, somnoliento, feliz",colorHoja:"Púrpura intenso",perfil:"Índica pura de sabor dulce tipo postre"},
+"mac":{nombre:"MAC (Miracle Alien Cookies)",sativa:50,indica:50,thc:"20-23%",floracion:"9-10 semanas",origen:"EE.UU.",breeder:"Capulator",aroma:"Cítrico, diesel, floral",gusto:"Cítrico, cremoso, especiado",efecto:"Eufórico, creativo, relajante",colorHoja:"Verde con púrpura",perfil:"Híbrido 50/50 premium"},
+"mac 1":{nombre:"MAC 1",sativa:50,indica:50,thc:"20-23%",floracion:"9-10 semanas",origen:"EE.UU.",breeder:"Capulator",aroma:"Cítrico, diesel, floral",gusto:"Cítrico, cremoso, especiado",efecto:"Eufórico, creativo, relajante",colorHoja:"Verde con púrpura",perfil:"Híbrido 50/50 premium"},
+"ice cream cake":{nombre:"Ice Cream Cake",sativa:25,indica:75,thc:"20-25%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Seed Junky Genetics",aroma:"Vainilla, dulce, cremoso",gusto:"Vainilla, crema, azúcar",efecto:"Relajante, sedante, eufórico",colorHoja:"Verde con púrpura y tricomas",perfil:"Índica dominante tipo postre premium"},
+"sunset sherbet":{nombre:"Sunset Sherbet",sativa:15,indica:85,thc:"18-24%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"Cookie Fam / Sherbinski",aroma:"Dulce, frutal, terroso",gusto:"Frutal, cítrico, dulce",efecto:"Relajante, feliz, eufórico",colorHoja:"Verde con naranja y púrpura",perfil:"Índica dominante de la familia Cookies"},
+"blue cheese":{nombre:"Blue Cheese",sativa:20,indica:80,thc:"17-20%",floracion:"8-9 semanas",origen:"Reino Unido",breeder:"Big Buddha Seeds",aroma:"Queso, arándano, dulce",gusto:"Queso, arándano, cremoso",efecto:"Relajante, feliz, somnoliento",colorHoja:"Verde con tonos azulados",perfil:"Índica de aroma único"},
+"cereal milk":{nombre:"Cereal Milk",sativa:50,indica:50,thc:"23-25%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Cookies / Powerzzzup Genetics",aroma:"Dulce, cremoso, vainilla",gusto:"Leche con cereal, dulce, cremoso",efecto:"Eufórico, creativo, relajante",colorHoja:"Verde con tricomas densos",perfil:"Híbrido premium sabor desayuno"},
+"hindu kush":{nombre:"Hindu Kush",sativa:0,indica:100,thc:"15-20%",floracion:"7-8 semanas",origen:"Montañas Hindu Kush, Afganistán/Pakistán",breeder:"Landrace",aroma:"Terroso, pino, sándalo",gusto:"Dulce, terroso, especiado",efecto:"Relajante profundo, meditativo, somnoliento",colorHoja:"Verde oscuro",perfil:"Índica pura landrace ancestral"},
+"kush mintz":{nombre:"Kush Mints",sativa:50,indica:50,thc:"22-27%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Seed Junky Genetics",aroma:"Menta, café, terroso",gusto:"Menta, galleta, cremoso",efecto:"Relajante, eufórico, cerebral",colorHoja:"Verde oscuro con tricomas",perfil:"Híbrido premium mentolado"},
+"kush mints":{nombre:"Kush Mints",sativa:50,indica:50,thc:"22-27%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Seed Junky Genetics",aroma:"Menta, café, terroso",gusto:"Menta, galleta, cremoso",efecto:"Relajante, eufórico, cerebral",colorHoja:"Verde oscuro con tricomas",perfil:"Híbrido premium mentolado"},
+"headband":{nombre:"Headband",sativa:40,indica:60,thc:"20-27%",floracion:"9-11 semanas",origen:"EE.UU.",breeder:"Reserva Privada / DNA Genetics",aroma:"Limón, diesel, terroso",gusto:"Limón, diesel, cremoso",efecto:"Relajante, eufórico, cerebral envolvente",colorHoja:"Verde medio",perfil:"Híbrido con efecto de presión cerebral característico"},
+"green crack":{nombre:"Green Crack",sativa:65,indica:35,thc:"15-25%",floracion:"7-9 semanas",origen:"EE.UU.",breeder:"Cecil C. / Snoop Dogg (nombró)",aroma:"Cítrico, mango, dulce",gusto:"Mango, cítrico, tropical",efecto:"Energético, enfocado, eufórico",colorHoja:"Verde claro brillante",perfil:"Sativa dominante energizante"},
+"sherbet":{nombre:"Sherbet",sativa:15,indica:85,thc:"18-24%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"Sherbinski",aroma:"Dulce, frutal, cítrico",gusto:"Dulce, cremoso, frutal",efecto:"Relajante, feliz, creativo",colorHoja:"Verde con naranja",perfil:"Índica dominante frutal de la familia GSC"},
+"tangie":{nombre:"Tangie",sativa:70,indica:30,thc:"19-22%",floracion:"9-10 semanas",origen:"Países Bajos / EE.UU.",breeder:"DNA Genetics",aroma:"Mandarina, cítrico, dulce",gusto:"Mandarina, naranja, tropical",efecto:"Eufórico, creativo, energético",colorHoja:"Verde con pistilos naranjas",perfil:"Sativa de sabor cítrico intenso"},
+"durban poison":{nombre:"Durban Poison",sativa:100,indica:0,thc:"15-25%",floracion:"8-9 semanas",origen:"Durban, Sudáfrica",breeder:"Landrace / Ed Rosenthal",aroma:"Dulce, terroso, pino",gusto:"Dulce, anís, especiado",efecto:"Energético, eufórico, productivo",colorHoja:"Verde medio con hojas delgadas",perfil:"Sativa pura africana landrace"},
+"platinum og":{nombre:"Platinum OG",sativa:25,indica:75,thc:"20-24%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"Desconocido",aroma:"Terroso, pino, hashish",gusto:"Dulce, especiado, diesel",efecto:"Relajante pesado, sedante, somnoliento",colorHoja:"Verde plateado con tricomas",perfil:"Índica dominante ultra relajante"},
+"super skunk":{nombre:"Super Skunk",sativa:20,indica:80,thc:"14-19%",floracion:"7-8 semanas",origen:"Países Bajos",breeder:"Sensi Seeds",aroma:"Skunk intenso, terroso, dulce",gusto:"Dulce, terroso, skunk",efecto:"Relajante, feliz, somnoliento",colorHoja:"Verde oscuro",perfil:"Índica clásica y accesible"},
+"cookies":{nombre:"Cookies (GSC)",sativa:40,indica:60,thc:"25-28%",floracion:"9-10 semanas",origen:"California, EE.UU.",breeder:"Cookie Fam",aroma:"Dulce, terroso, menta",gusto:"Galleta, chocolate, dulce",efecto:"Eufórico, relajante, feliz",colorHoja:"Verde con púrpura",perfil:"Híbrido premium de la familia Cookies"},
+"critical+":{nombre:"Critical+",sativa:40,indica:60,thc:"18-22%",floracion:"6-7 semanas",origen:"España",breeder:"Dinafem",aroma:"Cítrico, dulce, afrutado",gusto:"Dulce, terroso, frutal",efecto:"Relajante, feliz, social",colorHoja:"Verde claro con cogollos densos",perfil:"Híbrido de alto rendimiento y floración rápida"},
+"critical plus":{nombre:"Critical+",sativa:40,indica:60,thc:"18-22%",floracion:"6-7 semanas",origen:"España",breeder:"Dinafem",aroma:"Cítrico, dulce, afrutado",gusto:"Dulce, terroso, frutal",efecto:"Relajante, feliz, social",colorHoja:"Verde claro con cogollos densos",perfil:"Híbrido de alto rendimiento y floración rápida"},
+"haze":{nombre:"Haze",sativa:80,indica:20,thc:"17-22%",floracion:"10-12 semanas",origen:"Colombia / México / Tailandia / India",breeder:"Haze Brothers",aroma:"Cítrico, incienso, especiado",gusto:"Dulce, especiado, cítrico",efecto:"Cerebral potente, eufórico, creativo",colorHoja:"Verde claro con hojas finas",perfil:"Sativa legendaria de floración larga"},
+"maui wowie":{nombre:"Maui Wowie",sativa:80,indica:20,thc:"13-19%",floracion:"9-11 semanas",origen:"Hawái, EE.UU.",breeder:"Landrace hawaiana",aroma:"Tropical, piña, cítrico",gusto:"Piña, tropical, dulce",efecto:"Energético, feliz, creativo",colorHoja:"Verde claro tropical",perfil:"Sativa hawaiana clásica tropical"},
+"gmo":{nombre:"GMO (Garlic Cookies)",sativa:10,indica:90,thc:"24-30%",floracion:"9-10 semanas",origen:"EE.UU.",breeder:"Mamiko Seeds",aroma:"Ajo, hongos, café",gusto:"Ajo, cebolla, terroso",efecto:"Relajante pesado, eufórico, sedante",colorHoja:"Verde oscuro",perfil:"Índica ultra potente de aroma único"},
+"gmo cookies":{nombre:"GMO (Garlic Cookies)",sativa:10,indica:90,thc:"24-30%",floracion:"9-10 semanas",origen:"EE.UU.",breeder:"Mamiko Seeds",aroma:"Ajo, hongos, café",gusto:"Ajo, cebolla, terroso",efecto:"Relajante pesado, eufórico, sedante",colorHoja:"Verde oscuro",perfil:"Índica ultra potente de aroma único"},
+"garlic cookies":{nombre:"GMO (Garlic Cookies)",sativa:10,indica:90,thc:"24-30%",floracion:"9-10 semanas",origen:"EE.UU.",breeder:"Mamiko Seeds",aroma:"Ajo, hongos, café",gusto:"Ajo, cebolla, terroso",efecto:"Relajante pesado, eufórico, sedante",colorHoja:"Verde oscuro",perfil:"Índica ultra potente de aroma único"},
+"la confidential":{nombre:"LA Confidential",sativa:10,indica:90,thc:"19-25%",floracion:"7-8 semanas",origen:"California, EE.UU.",breeder:"DNA Genetics",aroma:"Pino, terroso, skunk",gusto:"Dulce, pino, terroso",efecto:"Relajante profundo, somnoliento, calmante",colorHoja:"Verde con tonos púrpura",perfil:"Índica pura californiana medicinal"},
+"tropicana cookies":{nombre:"Tropicana Cookies",sativa:70,indica:30,thc:"21-28%",floracion:"9-10 semanas",origen:"EE.UU.",breeder:"Oni Seed Co",aroma:"Naranja, cítrico, tropical",gusto:"Naranja, mandarina, tropical",efecto:"Eufórico, energético, creativo",colorHoja:"Púrpura con verde",perfil:"Sativa dominante frutal y colorida"},
+"slurricane":{nombre:"Slurricane",sativa:30,indica:70,thc:"24-28%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"In House Genetics",aroma:"Uva, bayas, tropical",gusto:"Frutal, tropical, dulce",efecto:"Relajante, eufórico, somnoliento",colorHoja:"Púrpura oscuro",perfil:"Índica dominante premium frutal"},
+"apple fritter":{nombre:"Apple Fritter",sativa:50,indica:50,thc:"22-28%",floracion:"8-9 semanas",origen:"California, EE.UU.",breeder:"Lumpy's Flowers",aroma:"Manzana, dulce, terroso",gusto:"Manzana, vainilla, manteca",efecto:"Eufórico, relajante, risueño",colorHoja:"Verde con tonos dorados",perfil:"Híbrido 50/50 tipo postre premium"},
+"lemon fuel":{nombre:"Lemon Fuel",sativa:50,indica:50,thc:"20-25%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Varios",aroma:"Limón intenso, diesel, cítrico",gusto:"Limón agrio, diesel, terroso",efecto:"Energético, cerebral, eufórico",colorHoja:"Verde claro con pistilos amarillos",perfil:"Híbrido cítrico-diesel potente"},
+"lemon fuel og":{nombre:"Lemon Fuel OG",sativa:50,indica:50,thc:"20-25%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Varios",aroma:"Limón intenso, diesel, cítrico",gusto:"Limón agrio, diesel, terroso",efecto:"Energético, cerebral, eufórico",colorHoja:"Verde claro con pistilos amarillos",perfil:"Híbrido cítrico-diesel potente"},
+"wedding crasher":{nombre:"Wedding Crasher",sativa:60,indica:40,thc:"21-25%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Symbiotic Genetics",aroma:"Uva, vainilla, dulce",gusto:"Dulce, vainilla, frutal",efecto:"Eufórico, social, creativo",colorHoja:"Verde con tonos púrpura",perfil:"Híbrido sativa social y sabroso"},
+"biscotti":{nombre:"Biscotti",sativa:20,indica:80,thc:"21-25%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Cookies Fam",aroma:"Dulce, diesel, especiado",gusto:"Galleta, manteca, dulce",efecto:"Relajante, eufórico, creativo",colorHoja:"Verde oscuro con púrpura",perfil:"Índica premium tipo postre"},
+"white truffle":{nombre:"White Truffle",sativa:30,indica:70,thc:"25-30%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Fresh Coast Genetics",aroma:"Ajo, terroso, cremoso",gusto:"Terroso, seta, diesel",efecto:"Relajante, eufórico, creativo",colorHoja:"Verde blanquecino con tricomas densos",perfil:"Índica rara y codiciada tipo gourmet"},
+"gary payton":{nombre:"Gary Payton",sativa:50,indica:50,thc:"22-28%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Cookies / Powerzzzup Genetics",aroma:"Diesel, dulce, terroso",gusto:"Dulce, terroso, pungente",efecto:"Eufórico, energético, cerebral",colorHoja:"Verde con pistilos naranjas densos",perfil:"Híbrido premium de edición limitada"},
+"lava cake":{nombre:"Lava Cake",sativa:30,indica:70,thc:"19-25%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Cannarado Genetics",aroma:"Dulce, menta, chocolate",gusto:"Chocolate, menta, vainilla",efecto:"Relajante, eufórico, feliz",colorHoja:"Verde oscuro con púrpura",perfil:"Índica dominante tipo postre decadente"},
+"london pound cake":{nombre:"London Pound Cake",sativa:30,indica:70,thc:"22-29%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Cookies / Seed Junky",aroma:"Dulce, uva, bayas, cítrico",gusto:"Torta, uva, berry, dulce",efecto:"Relajante, eufórico, somnoliento",colorHoja:"Verde con púrpura",perfil:"Índica potente tipo postre de la familia Cookies"},
+"platinum cookies":{nombre:"Platinum Cookies",sativa:35,indica:65,thc:"18-26%",floracion:"9-10 semanas",origen:"California, EE.UU.",breeder:"Cookie Fam",aroma:"Dulce, terroso, frutal",gusto:"Dulce, frutal, terroso",efecto:"Eufórico, relajante, creativo",colorHoja:"Verde con tricomas plateados",perfil:"Variante premium de la familia GSC"},
+"grease monkey":{nombre:"Grease Monkey",sativa:30,indica:70,thc:"25-31%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Exotic Genetix",aroma:"Dulce, vainilla, diesel",gusto:"Vainilla, nuez, diesel",efecto:"Relajante profundo, eufórico, somnoliento",colorHoja:"Verde oscuro",perfil:"Índica dominante ultra potente"},
+"rainbow belts":{nombre:"Rainbow Belts",sativa:50,indica:50,thc:"22-28%",floracion:"8-9 semanas",origen:"EE.UU.",breeder:"Alien Labs",aroma:"Frutal, dulce, tropical",gusto:"Caramelo, frutal, tropical",efecto:"Eufórico, relajante, feliz",colorHoja:"Verde con púrpura y naranja",perfil:"Híbrido premium frutal y colorido"}
+};
+
+// Normaliza nombre para búsqueda (minúsculas, sin espacios extra)
+function normalizeStrain(s) {
+  return s.toLowerCase().replace(/\s+/g,' ').trim()
+    .replace(/['']/g, '').replace(/#/g,' ').replace(/\s+/g,' ').trim();
+}
+
+// Búsqueda fuzzy: coincidencia parcial si no hay exacta
+function findStrain(name) {
+  const n = normalizeStrain(name);
+  // 1. Exacta
+  if (STRAIN_DB[n]) return STRAIN_DB[n];
+  // 2. Contenida
+  for (const [k,v] of Object.entries(STRAIN_DB)) {
+    if (k === n || n.includes(k) || k.includes(n)) return v;
+  }
+  // 3. Palabras clave
+  const words = n.split(' ').filter(w => w.length > 2);
+  if (words.length) {
+    let best = null, bestScore = 0;
+    for (const [k,v] of Object.entries(STRAIN_DB)) {
+      const score = words.filter(w => k.includes(w)).length;
+      if (score > bestScore) { bestScore = score; best = v; }
+    }
+    if (bestScore >= Math.ceil(words.length * 0.6)) return best;
+  }
+  return null;
+}
+
+// Fallback: Pollinations con retry robusto
+async function aiFetchRemote(prompt) {
+  const models = ['openai','mistral','openai-large','llama'];
+  const RETRIES = 3;
+  let lastErr = '';
+  for (const model of models) {
+    for (let att = 0; att < RETRIES; att++) {
+      try {
+        if (att > 0) await new Promise(r => setTimeout(r, (att * 2500) + Math.random() * 1500));
+        const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
+          + '?model=' + model + '&json=true&seed=' + Math.floor(Math.random()*99999)
+          + '&cachebust=' + Date.now();
+        const res = await fetch(url, { signal: AbortSignal.timeout(25000) });
+        if ([429,502,503,504].includes(res.status)) { lastErr = 'Servidor ocupado'; continue; }
+        if (!res.ok) { lastErr = 'HTTP ' + res.status; break; }
+        const txt = await res.text();
+        if (!txt || !txt.includes('{')) { lastErr = 'Sin datos'; break; }
+        try { return JSON.parse(txt); } catch {}
+        try { return JSON.parse(txt.replace(/```json|```/g,'').trim()); } catch {}
+        const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
+        if (s !== -1 && e !== -1) return JSON.parse(txt.slice(s, e+1));
+        lastErr = 'Respuesta inválida';
+      } catch(e) { lastErr = e.message; }
+    }
+  }
+  throw new Error(lastErr || 'Servicio no disponible');
+}
+
+async function aiAutofill() {
+  const strainName = document.getElementById('ai-strain-name').value.trim();
+  const source     = document.getElementById('ai-strain-source').value.trim();
+  const errEl      = document.getElementById('ai-error');
+  const btn        = document.getElementById('ai-btn');
+  const btnTxt     = document.getElementById('ai-btn-text');
+  errEl.style.display = 'none';
+
+  if (!strainName) { errEl.textContent = '⚠ Ingresá el nombre.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btnTxt.innerHTML = '⏳ Buscando…';
+
+  try {
+    // 1. Buscar en base de datos local (instantáneo, 100% confiable)
+    const local = findStrain(strainName);
+    let parsed = null;
+
+    if (local) {
+      parsed = local;
+      btnTxt.innerHTML = '⏳ Encontrado localmente…';
+    } else {
+      // 2. Fallback: API de IA
+      btnTxt.innerHTML = '⏳ Consultando IA…';
+      const p = `cannabis strain "${strainName}"${source?` from ${source}`:''} JSON only español except names: {"nombre":"","sativa":50,"indica":50,"thc":"","floracion":"","origen":"","breeder":"","aroma":"","gusto":"","efecto":"","colorHoja":"","perfil":""}`;
+      parsed = await aiFetchRemote(p);
+    }
+
+    if (!parsed) throw new Error('No se encontraron datos.');
+    if (parsed.error) throw new Error('Cepa no encontrada. Verificá el nombre.');
+
+    document.getElementById('mp-nombre').value    = parsed.nombre    || strainName;
+    if (parsed.thc)       document.getElementById('mp-thc').value       = parsed.thc;
+    if (parsed.floracion) document.getElementById('mp-floracion').value = parsed.floracion;
+    if (parsed.origen)    document.getElementById('mp-origen').value    = parsed.origen;
+    if (parsed.breeder)   document.getElementById('mp-breeder').value   = parsed.breeder;
+    if (parsed.aroma)     document.getElementById('mp-aroma').value     = parsed.aroma;
+    if (parsed.gusto)     document.getElementById('mp-gusto').value     = parsed.gusto;
+    if (parsed.efecto)    document.getElementById('mp-efecto').value    = parsed.efecto;
+    if (parsed.colorHoja) document.getElementById('mp-colorhoja').value = parsed.colorHoja;
+    if (parsed.perfil)    document.getElementById('mp-perfil').value    = parsed.perfil;
+
+    const sativaVal = Math.min(100, Math.max(0, parseInt(parsed.sativa) || 50));
+    document.getElementById('mp-sativa').value = sativaVal; updSativa();
+    showToast(local ? '✓ Datos cargados (base local)' : '✓ Datos cargados (IA)');
+
+  } catch(e) {
+    errEl.textContent = '⚠ ' + (e.message || 'Error. Intentá de nuevo.');
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btnTxt.textContent = '✦ Buscar y cargar datos';
+  }
+}
+
+
+function quickCreateGroup() {
+  // Save current plant modal state so we can return to it
+  closeModal('modal-plant');
+  // Open group modal in "new" mode
+  document.getElementById('mg-title').textContent = 'Nuevo grupo';
+  document.getElementById('mg-nombre').value = '';
+  document.getElementById('mg-desc').value = '';
+  document.getElementById('mg-color').value = '#7fb85a';
+  document.getElementById('mg-editing-id').value = '';
+  document.getElementById('mg-return-to-plant').value = '1'; // flag: return to plant modal
+  buildSwatches('mg-color-row','mg-color');
+  document.getElementById('modal-group').classList.add('open');
+  setTimeout(()=>document.getElementById('mg-nombre').focus(),200);
+}
+
+function goToDryingEntries() {
+  showTab('cosechar', document.querySelectorAll('.tab-btn')[1]);
+  setFilter('secando', document.querySelectorAll('.filter-btn')[1]);
+  setTimeout(() => { const el = document.getElementById('entries-container'); if(el) el.scrollIntoView({behavior:'smooth'}); }, 150);
+}
+
+// ══════════════════════════════════════════════════
+//  PHOTOS
+// ══════════════════════════════════════════════════
+let currentPhotoPlantId = null;
+let lightboxPhotoKey = null;
+
+async function compressImage(file, maxW=800, quality=0.72) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handlePhotoUpload(files) {
+  if (!files || !files.length) return;
+  const pid = currentPhotoPlantId;
+  if (!pid) { showToast('⚠ Guardá la planta primero para agregar fotos.', true); return; }
+  document.getElementById('mp-photo-uploading').style.display = 'inline';
+  try {
+    for (const file of Array.from(files)) {
+      const b64 = await compressImage(file);
+      const key = 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+      await dbRef(`photos/${currentUser}/${pid}/${key}`).set(b64);
+    }
+    await renderPhotoGallery(pid, 'mp-photo-gallery', true);
+    // Also refresh plant card if visible
+    renderGroupsIndex();
+    showToast('✓ Foto guardada');
+  } catch(e) { showToast('⚠ Error al guardar foto: ' + e.message, true); }
+  finally { document.getElementById('mp-photo-uploading').style.display = 'none'; }
+  // Reset inputs so same file can be re-selected
+  document.getElementById('mp-photo-file').value = '';
+  document.getElementById('mp-photo-camera').value = '';
+}
+
+async function renderPhotoGallery(pid, containerId, editable) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  try {
+    const snap = await dbRef(`photos/${currentUser}/${pid}`).get();
+    const photos = snap.exists() ? snap.val() : {};
+    const keys = Object.keys(photos);
+    if (!keys.length) { container.innerHTML = editable ? '' : ''; return; }
+    container.innerHTML = keys.map(k =>
+      `<img class="photo-thumb" src="${photos[k]}" onclick="openLightbox('${pid}','${k}',\`${photos[k]}\`)" alt="foto"/>`
+    ).join('');
+  } catch(e) { container.innerHTML = ''; }
+}
+
+function openLightbox(pid, key, src) {
+  lightboxPhotoKey = key;
+  currentPhotoPlantId = pid;
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox-del-btn').onclick = () => deletePhoto(pid, key);
+  document.getElementById('photo-lightbox').classList.remove('hidden');
+}
+
+function closeLightbox(e) {
+  if (e && e.target !== document.getElementById('photo-lightbox') && !e.target.classList.contains('photo-lightbox-close')) return;
+  document.getElementById('photo-lightbox').classList.add('hidden');
+  document.getElementById('lightbox-img').src = '';
+}
+
+async function deletePhoto(pid, key) {
+  try {
+    await dbRef(`photos/${currentUser}/${pid}/${key}`).remove();
+    document.getElementById('photo-lightbox').classList.add('hidden');
+    await renderPhotoGallery(pid, 'mp-photo-gallery', true);
+    // Refresh card
+    const container = document.getElementById('plant-photos-' + pid.replace(/'/g,"\\'"));
+    if (container) await renderPhotoGallery(pid, 'plant-photos-' + pid, false);
+    renderGroupsIndex();
+    showToast('Foto eliminada');
+  } catch(e) { showToast('⚠ Error', true); }
+}
+
+// ══════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  const session = localStorage.getItem('jd_session');
+  if (session) {
+    document.getElementById('login-user').value = session;
+    setTimeout(() => document.getElementById('login-pass').focus(), 300);
+  }
+  document.getElementById('auth-screen').classList.remove('hidden');
+});
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jardín — Registro de Cosecha</title>
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <!-- CryptoJS para garantizar compatibilidad de encriptación de contraseñas (soluciona error en PC) -->
