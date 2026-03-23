@@ -37,10 +37,10 @@ body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);min-
 .splash-enter:hover{background:#90cc66;}
 .splash-enter:active{transform:scale(.97);}
 
-.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:1.5rem;z-index:8000;overflow-y:auto;
+.screen{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem;z-index:8000;overflow-y:auto;-webkit-overflow-scrolling:touch;
   background:var(--bg);background-image:radial-gradient(ellipse at 30% 20%,rgba(127,184,90,.08) 0%,transparent 55%),radial-gradient(ellipse at 70% 80%,rgba(200,168,75,.06) 0%,transparent 55%);}
 .screen.hidden{display:none;}
-.screen-box{width:100%;max-width:420px;margin:auto;position:relative;z-index:10;}
+.screen-box{width:100%;max-width:420px;margin:auto;padding-top:2rem;padding-bottom:2rem;position:relative;z-index:10;}
 .auth-logo{text-align:center;margin-bottom:2rem;}
 .auth-logo h1{font-family:'Playfair Display',serif;font-size:3rem;color:var(--white);letter-spacing:-.02em;line-height:1;}
 .auth-logo p{font-size:.7rem;color:var(--text3);letter-spacing:.2em;text-transform:uppercase;margin-top:.4rem;}
@@ -55,6 +55,11 @@ body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);min-
 .auth-form input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.9rem;padding:.7rem 1rem;border-radius:3px;outline:none;transition:border-color .2s;}
 .auth-form input:focus{border-color:var(--accent);}
 .auth-form input::placeholder{color:var(--text3);}
+/* iOS auto-zoom fix: inputs deben ser >= 16px en móvil */
+@media(max-width:640px){
+  .auth-form input{font-size:1rem;}
+  .form-group input,.form-group select,.form-group textarea{font-size:1rem;}
+}
 .auth-error{font-size:.72rem;color:var(--accent3);margin-bottom:.8rem;min-height:1.1rem;display:block;line-height:1.5;}
 .btn-auth{width:100%;padding:.85rem;background:var(--accent);color:var(--bg);border:none;font-family:'DM Mono',monospace;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:500;margin-top:.4rem;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:.6rem;}
 .btn-auth:hover:not(:disabled){background:#90cc66;}
@@ -332,6 +337,10 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
 <!-- ═══ AUTH ═══ -->
 <div id="auth-screen" class="screen">
   <div class="screen-box">
+    <div class="auth-logo">
+      <h1>🌿 Jardín</h1>
+      <p>Registro de cosecha</p>
+    </div>
     <div class="auth-card">
       <div class="auth-tabs">
         <button type="button" class="auth-tab active" onclick="switchAuthTab('login',this)">Ingresar</button>
@@ -596,11 +605,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     <div style="display:flex;gap:.6rem;margin-top:.6rem;flex-wrap:wrap">
       <label style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem .9rem;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
         📁 Archivo
-        <input type="file" id="mp-photo-file" accept="image/*" multiple style="display:none" onchange="handlePhotoUpload(this.files, false)"/>
+        <input type="file" id="mp-photo-file" accept="image/*" multiple style="display:none" onchange="handlePhotoUpload(this.files)"/>
       </label>
       <label style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem .9rem;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
         📷 Cámara
-        <input type="file" id="mp-photo-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this.files, false)"/>
+        <input type="file" id="mp-photo-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoUpload(this.files)"/>
       </label>
       <span id="mp-photo-uploading" style="font-size:.7rem;color:var(--accent2);align-self:center;display:none">⏳ Subiendo…</span>
     </div><button class="btn-cancel" onclick="closeModal('modal-plant')">Cancelar</button><button class="btn-confirm" onclick="confirmPlant()">Guardar</button></div>
@@ -662,19 +671,35 @@ if (typeof firebase === 'undefined') {
   document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem;text-align:center;font-family:monospace;color:#d4dcc8;background:#0f130e;"><div><h2 style="color:#e07a5f;margin-bottom:1rem;">⚠ Error de conexión</h2><p style="color:#8fa07e;max-width:400px;line-height:1.7;">No se pudo cargar Firebase. Verificá tu conexión a internet y recargá la página.<br><br><button onclick="location.reload()" style="padding:.7rem 1.5rem;background:#7fb85a;color:#0f130e;border:none;border-radius:3px;cursor:pointer;font-family:monospace;font-size:.85rem;">Recargar</button></p></div></div>';
   throw new Error('Firebase SDK no cargó');
 }
-firebase.initializeApp({
-  apiKey:            "AIzaSyCWFYKyLnVUFO77Yc9-1c45xLYsvZgPUlI",
-  authDomain:        "cosecha-96dc2.firebaseapp.com",
-  databaseURL:       "https://cosecha-96dc2-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:         "cosecha-96dc2",
-  storageBucket:     "cosecha-96dc2.firebasestorage.app",
-  messagingSenderId: "599888392531",
-  appId:             "1:599888392531:web:8efff315ed2055390671a6"
-});
+// Evitar doble inicialización (causa error en hot-reload y ciertas vistas de móvil)
+if (!firebase.apps.length) {
+  firebase.initializeApp({
+    apiKey:            "AIzaSyCWFYKyLnVUFO77Yc9-1c45xLYsvZgPUlI",
+    authDomain:        "cosecha-96dc2.firebaseapp.com",
+    databaseURL:       "https://cosecha-96dc2-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:         "cosecha-96dc2",
+    storageBucket:     "cosecha-96dc2.firebasestorage.app",
+    messagingSenderId: "599888392531",
+    appId:             "1:599888392531:web:8efff315ed2055390671a6"
+  });
+}
 
 const dbRef = path => firebase.database().ref('jardin/' + path);
 const dbGet = async path => { const s = await dbRef(path).get(); return s.exists() ? s.val() : null; };
 const dbSet = async (path, data) => dbRef(path).set(data);
+
+// ── dbGet con timeout para evitar que se cuelgue en móvil ──
+const dbGetTimeout = (path, ms=10000) => Promise.race([
+  dbGet(path),
+  new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout: Firebase no respondió. Revisá tu conexión.')), ms))
+]);
+
+// ── localStorage seguro (falla en Safari iOS modo privado) ──
+const safeStorage = {
+  get(k) { try { return localStorage.getItem(k); } catch(e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch(e) {} },
+  remove(k) { try { localStorage.removeItem(k); } catch(e) {} }
+};
 
 // ══════════════════════════════════════════════════
 //  STATE
@@ -782,6 +807,8 @@ async function doLogin(){
     const errEl=document.getElementById('login-error'); errEl.textContent='';
     
     if(!username||!password){errEl.textContent='Completá usuario y contraseña.';return;}
+    // Firebase no permite . # $ [ ] en paths — estos caracteres causan "Invalid token in path"
+    if(/[.#$\[\]]/.test(username)){errEl.textContent='El usuario no puede contener: . # $ [ ]';return;}
     
     setBtnLoading('login-btn','login-btn-text',true,'Ingresando…');
     
@@ -790,7 +817,7 @@ async function doLogin(){
     catch(he) { errEl.textContent='Error de encriptación: '+he.message; setBtnLoading('login-btn','login-btn-text',false,'Ingresar →'); return; }
     
     let stored;
-    try { stored=await dbGet(`users/${username}/hash`); }
+    try { stored=await dbGetTimeout(`users/${username}/hash`); }
     catch(de) {
       const msg = de.message||de.code||String(de);
       if(msg.includes('PERMISSION_DENIED')||msg.includes('permission')) {
@@ -811,8 +838,8 @@ async function doLogin(){
         return;
     }
     
-    const data=await dbGet(`users/${username}/data`)||{groups:[],plants:[],entries:[],trash:[]};
-    localStorage.setItem('jd_session',username);
+    const data=await dbGetTimeout(`users/${username}/data`)||{groups:[],plants:[],entries:[],trash:[]};
+    safeStorage.set('jd_session',username);
     bootApp(username,data);
   } catch(e) {
     const errEl=document.getElementById('login-error');
@@ -835,10 +862,12 @@ async function doRegister(){
     if(username.length<3){errEl.textContent='Usuario: mínimo 3 caracteres.';return;}
     if(password.length<6){errEl.textContent='Contraseña: mínimo 6 caracteres.';return;}
     if(password!==pass2){errEl.textContent='Las contraseñas no coinciden.';return;}
+    // Firebase no permite . # $ [ ] en paths
+    if(/[.#$\[\]]/.test(username)){errEl.textContent='El usuario no puede contener: . # $ [ ]';return;}
     
     setBtnLoading('reg-btn','reg-btn-text',true,'Creando…');
     
-    const existing=await dbGet(`users/${username}/hash`);
+    const existing=await dbGetTimeout(`users/${username}/hash`);
     if(existing){
         errEl.textContent='Ese usuario ya existe.';
         setBtnLoading('reg-btn','reg-btn-text',false,'Crear cuenta →');
@@ -850,7 +879,7 @@ async function doRegister(){
     await dbSet(`users/${username}/hash`,hash);
     await dbSet(`users/${username}/data`,initData);
     
-    localStorage.setItem('jd_session',username);
+    safeStorage.set('jd_session',username);
     bootApp(username,initData);
   } catch(e) {
     const msg=e.message||e.code||String(e);
@@ -922,7 +951,7 @@ function showTabByName(name){
 }
 
 function doLogout(){
-  clearTimeout(saveTimer);localStorage.removeItem('jd_session');
+  clearTimeout(saveTimer);safeStorage.remove('jd_session');
   currentUser=null;groups=[];plants=[];entries=[];trash=[];
   document.getElementById('splash-screen').classList.add('hidden');
   document.getElementById('app').style.display='none';
@@ -2078,31 +2107,41 @@ async function deletePhoto(pid, key) {
 //  INIT
 // ══════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
-  const session = localStorage.getItem('jd_session');
+  const session = safeStorage.get('jd_session');
   if (session) {
     document.getElementById('login-user').value = session;
     setTimeout(() => document.getElementById('login-pass').focus(), 300);
   }
   document.getElementById('auth-screen').classList.remove('hidden');
 
-  // Test conexión Firebase al cargar
-  setTimeout(async () => {
-    try {
-      await firebase.database().ref('.info/connected').get();
-      console.log('[Jardín] ✅ Firebase conectado desde: ' + location.hostname);
-    } catch(e) {
-      console.error('[Jardín] ❌ Firebase error:', e);
-      const banner = document.createElement('div');
-      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:10px 16px;background:#e07a5f;color:#fff;font-family:monospace;font-size:12px;z-index:99999;text-align:center;line-height:1.5;';
-      const msg = e.message||e.code||String(e);
-      if(msg.includes('PERMISSION_DENIED')||msg.includes('permission')) {
-        banner.innerHTML = '⚠ Firebase bloqueó este dominio (<b>'+location.hostname+'</b>). Abrí Firebase Console → Realtime Database → Reglas → cambiá a:<br><code style="background:rgba(0,0,0,.3);padding:2px 6px;border-radius:3px">{"rules":{".read":true,".write":true}}</code> → Publicar';
+  // Test conexión Firebase - usar .info/connected correctamente (sin prefijo 'jardin/')
+  setTimeout(() => {
+    const connRef = firebase.database().ref('.info/connected');
+    const timeout = setTimeout(() => {
+      console.warn('[Jardín] Firebase: sin respuesta tras 5s');
+    }, 5000);
+    connRef.once('value', snap => {
+      clearTimeout(timeout);
+      if (snap.val() === true) {
+        console.log('[Jardín] ✅ Firebase conectado desde: ' + location.hostname);
       } else {
-        banner.innerHTML = '⚠ Error conectando a Firebase: ' + msg + ' (dominio: '+location.hostname+')';
+        console.warn('[Jardín] Firebase: desconectado o offline');
       }
+    }, err => {
+      clearTimeout(timeout);
+      console.error('[Jardín] ❌ Firebase error:', err);
+      const banner = document.createElement('div');
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:10px 16px;background:#e07a5f;color:#fff;font-family:monospace;font-size:12px;z-index:99999;text-align:center;line-height:1.5;cursor:pointer;';
+      const msg = err.message||err.code||String(err);
+      if(msg.includes('PERMISSION_DENIED')||msg.includes('permission')) {
+        banner.innerHTML = '⚠ Firebase bloqueó este dominio (<b>'+location.hostname+'</b>). Abrí Firebase Console → Realtime Database → Reglas → cambiá a: <code style="background:rgba(0,0,0,.3);padding:2px 6px;border-radius:3px">{"rules":{".read":true,".write":true}}</code> → Publicar <span style="margin-left:1rem;opacity:.7">[×]</span>';
+      } else {
+        banner.innerHTML = '⚠ Error conectando a Firebase: ' + msg + ' (dominio: '+location.hostname+') <span style="margin-left:1rem;opacity:.7">[×]</span>';
+      }
+      banner.onclick = () => banner.remove();
       document.body.prepend(banner);
-    }
-  }, 1500);
+    });
+  }, 1000);
 });
 </script>
 </body>
