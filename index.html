@@ -299,6 +299,12 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
 .photo-gallery{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;}
 .plant-photos-inline{margin-top:0;padding:.5rem 1.1rem;}
 .plant-photos-inline:not(:empty){border-top:1px solid var(--border);}
+/* ── Group photo strip ── */
+.group-photo-bar{padding:.6rem 1.2rem .2rem;}
+.group-photo-strip{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.5rem;}
+.group-photo-strip:not(:empty){margin-bottom:.7rem;}
+.group-photo-actions{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem;}
+.group-photo-actions .btn-outline{font-size:.67rem;padding:.3rem .7rem;letter-spacing:.07em;}
 .photo-thumb{width:64px;height:64px;border-radius:4px;object-fit:cover;cursor:pointer;border:1px solid var(--border);transition:border-color .2s,transform .15s;}
 .photo-thumb:hover{border-color:var(--accent);transform:scale(1.05);}
 .photo-add-btn{width:64px;height:64px;border-radius:4px;border:1px dashed var(--border);background:none;color:var(--text3);font-size:1.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .2s,color .2s;}
@@ -648,6 +654,18 @@ document.addEventListener('DOMContentLoaded',()=>{
     <input type="hidden" id="mg-color" value="#7fb85a"/>
     <input type="hidden" id="mg-editing-id" value=""/>
     <input type="hidden" id="mg-return-to-plant" value=""/>
+    <!-- Fotos del cultivo (solo al editar grupo existente) -->
+    <div id="mg-photos-section" style="display:none">
+      <div class="sect-div">Fotos del cultivo</div>
+      <div id="mg-photo-gallery" class="photo-gallery" style="margin-bottom:.8rem;min-height:0"></div>
+      <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.6rem">
+        <button type="button" class="btn-outline green" onclick="document.getElementById('mg-photo-file').click()">+ Foto</button>
+        <button type="button" class="btn-outline" onclick="document.getElementById('mg-photo-camera').click()">📷 Cámara</button>
+        <input type="file" id="mg-photo-file" accept="image/*" multiple style="display:none" onchange="handleGroupPhotoUpload(this.files)"/>
+        <input type="file" id="mg-photo-camera" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhotoUpload(this.files)"/>
+        <span id="mg-photo-uploading" style="font-size:.7rem;color:var(--accent2);display:none">⏳ Subiendo…</span>
+      </div>
+    </div>
     <div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-group')">Cancelar</button><button class="btn-confirm" onclick="confirmGroup()">Guardar</button></div>
   </div>
 </div>
@@ -1560,6 +1578,17 @@ function renderGroupsIndex(){
         </div>
       </div>
       <div class="acc-content ${isOpen?'open':''}" id="${accId}">
+        <!-- Fotos del cultivo completo -->
+        <div class="group-photo-bar">
+          <div id="group-photos-${g.id}" class="group-photo-strip"></div>
+          <div class="group-photo-actions">
+            <button class="btn-outline" onclick="triggerGroupPhoto('${g.id}','file')">📷 Foto del cultivo</button>
+            <button class="btn-outline" onclick="triggerGroupPhoto('${g.id}','cam')">📸 Cámara</button>
+            <input type="file" id="gph-file-${g.id}" accept="image/*" multiple style="display:none" onchange="handleGroupPhotoUpload(this.files,'${g.id}')"/>
+            <input type="file" id="gph-cam-${g.id}" accept="image/*" capture="environment" style="display:none" onchange="handleGroupPhotoUpload(this.files,'${g.id}')"/>
+            <span id="gph-up-${g.id}" style="font-size:.7rem;color:var(--accent2);display:none">⏳ Subiendo…</span>
+          </div>
+        </div>
         <div style="margin-bottom:1.2rem"><button class="btn-outline green" onclick="openPlantModal(null, '${g.id}')">+ Nueva planta en ${g.nombre}</button></div>
         <div class="plants-grid">
           ${gPlants.length ? gPlants.map(p => plantCardHTML(p, totals)).join('') : '<div class="empty-msg" style="grid-column:1/-1;background:transparent">Este grupo no tiene plantas.</div>'}
@@ -1601,8 +1630,10 @@ function renderGroupsIndex(){
   }
   
   document.getElementById('groups-accordion-list').innerHTML = html;
-  // Load plant photos into each card (inline scripts in innerHTML don't execute)
+  // Load plant photos into each card
   plants.forEach(p => renderPhotoGallery(p.id, 'plant-photos-' + p.id, false));
+  // Load group photos into each accordion strip
+  groups.forEach(g => renderGroupPhotoGallery(g.id, 'group-photos-' + g.id));
 }
 
 function plantCardHTML(p, totals) {
@@ -1678,6 +1709,13 @@ function openGroupModal(gid){
   document.getElementById('mg-editing-id').value=g?g.id:'';
   document.getElementById('mg-return-to-plant').value=''; // normal open, no return
   buildSwatches('mg-color-row','mg-color');
+  // Photos section: solo para grupos existentes
+  const photoSec = document.getElementById('mg-photos-section');
+  if (photoSec) {
+    photoSec.style.display = g ? 'block' : 'none';
+    document.getElementById('mg-photo-gallery').innerHTML = '';
+    if (g) { currentPhotoGroupId = g.id; renderGroupPhotoGallery(g.id, 'mg-photo-gallery'); }
+  }
   document.getElementById('modal-group').classList.add('open');
   setTimeout(()=>document.getElementById('mg-nombre').focus(),200);
 }
@@ -2365,6 +2403,8 @@ function goToDryingEntries() {
 //  PHOTOS
 // ══════════════════════════════════════════════════
 let currentPhotoPlantId = null;
+let currentPhotoGroupId = null;
+const groupPhotoCache = {}; // { gid: { key: base64 } }
 let lightboxPhotoKey = null;
 
 async function compressImage(file, maxW=800, quality=0.72) {
@@ -2450,131 +2490,69 @@ async function deletePhoto(pid, key) {
 }
 
 // ══════════════════════════════════════════════════
-//  FOTOS DE COSECHAS (entry photos)
+//  FOTOS DE GRUPO (cultivo completo)
 // ══════════════════════════════════════════════════
-async function handleEntryPhotoUpload(files) {
-  if (!files || !files.length) return;
-  const eid = editingEntryId;
-  if (!eid) { showToast('⚠ Error: no hay cosecha seleccionada.', true); return; }
-  const eKey = 'entry_' + eid;
-  document.getElementById('ms-photo-uploading').style.display = 'inline';
-  try {
-    for (const file of Array.from(files)) {
-      const b64 = await compressImage(file);
-      const key = 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-      await dbRef(`entryPhotos/${currentUser}/${eKey}/${key}`).set(b64);
-    }
-    // Mark entry as having photos
-    const e = entries.find(x=>x.id===eid);
-    if (e) { e.hasPhotos = true; scheduleSave(); }
-    await renderEntryPhotoGallery(eid);
-    renderEntries();
-    showToast('✓ Foto guardada');
-  } catch(err) { showToast('⚠ Error al guardar foto: ' + err.message, true); }
-  finally {
-    document.getElementById('ms-photo-uploading').style.display = 'none';
-    document.getElementById('ms-photo-file').value = '';
-    document.getElementById('ms-photo-camera').value = '';
-  }
-}
-
-async function renderEntryPhotoGallery(entryId) {
-  const container = document.getElementById('ms-photo-gallery');
+async function renderGroupPhotoGallery(gid, containerId) {
+  const container = document.getElementById(containerId);
   if (!container) return;
-  const eKey = 'entry_' + entryId;
   try {
-    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
+    const snap = await dbRef('groupPhotos/' + currentUser + '/' + gid).get();
     const photos = snap.exists() ? snap.val() : {};
     const keys = Object.keys(photos);
+    groupPhotoCache[gid] = photos;
     if (!keys.length) { container.innerHTML = ''; return; }
     container.innerHTML = keys.map(k =>
-      `<img class="photo-thumb" src="${photos[k]}" onclick="openEntryLightbox('${entryId}','${k}',\`${photos[k]}\`)" alt="foto"/>`
+      '<img class="photo-thumb" src="' + photos[k] + '" onclick="openGroupLightbox(\'' + gid + '\',\'' + k + '\')" alt="foto cultivo"/>'
     ).join('');
   } catch(e) { container.innerHTML = ''; }
 }
 
-async function renderEntryPhotosInline(entryId) {
-  const eKey = 'entry_' + entryId;
-  try {
-    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
-    const photos = snap.exists() ? snap.val() : {};
-    const keys = Object.keys(photos);
-    if (!keys.length) return;
-    const html = keys.map(k =>
-      `<img class="photo-thumb" src="${photos[k]}" onclick="openEntryLightbox('${entryId}','${k}',\`${photos[k]}\`)" alt="foto"/>`
-    ).join('');
-    const t = document.getElementById('entry-photos-' + entryId);
-    if (t) t.innerHTML = html;
-    const c = document.getElementById('entry-photos-card-' + entryId);
-    if (c) c.innerHTML = html;
-  } catch(e) { /* silent */ }
+function triggerGroupPhoto(gid, type) {
+  const el = document.getElementById(type === 'cam' ? 'gph-cam-' + gid : 'gph-file-' + gid);
+  if (el) el.click();
 }
 
-function openEntryLightbox(entryId, key, src) {
-  lightboxPhotoKey = key;
-  // Re-use the main lightbox but set delete to entry path
+async function handleGroupPhotoUpload(files, gid) {
+  if (!files || !files.length) return;
+  const targetGid = gid || currentPhotoGroupId;
+  if (!targetGid) return;
+  const upEl = document.getElementById('gph-up-' + targetGid);
+  const upMg = document.getElementById('mg-photo-uploading');
+  if (upEl) upEl.style.display = 'inline';
+  if (upMg) upMg.style.display = 'inline';
+  try {
+    for (const file of Array.from(files)) {
+      const b64 = await compressImage(file);
+      const key = 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+      await dbRef('groupPhotos/' + currentUser + '/' + targetGid + '/' + key).set(b64);
+    }
+    // Refresca ambos contenedores (accordion + modal si está abierto)
+    await renderGroupPhotoGallery(targetGid, 'group-photos-' + targetGid);
+    await renderGroupPhotoGallery(targetGid, 'mg-photo-gallery');
+    showToast('✓ Foto del cultivo guardada');
+  } catch(err) { showToast('⚠ Error al guardar: ' + err.message, true); }
+  finally {
+    if (upEl) upEl.style.display = 'none';
+    if (upMg) upMg.style.display = 'none';
+    const fi = document.getElementById('gph-file-' + targetGid);
+    const ci = document.getElementById('gph-cam-' + targetGid);
+    if (fi) fi.value = '';
+    if (ci) ci.value = '';
+    const mf = document.getElementById('mg-photo-file');
+    const mc = document.getElementById('mg-photo-camera');
+    if (mf) mf.value = '';
+    if (mc) mc.value = '';
+  }
+}
+
+function openGroupLightbox(gid, key) {
+  const src = (groupPhotoCache[gid] || {})[key];
+  if (!src) return;
   document.getElementById('lightbox-img').src = src;
-  document.getElementById('lightbox-del-btn').onclick = () => deleteEntryPhoto(entryId, key);
+  document.getElementById('lightbox-del-btn').onclick = function() { deleteGroupPhoto(gid, key); };
   document.getElementById('photo-lightbox').classList.remove('hidden');
 }
 
-async function deleteEntryPhoto(entryId, key) {
-  const eKey = 'entry_' + entryId;
+async function deleteGroupPhoto(gid, key) {
   try {
-    await dbRef(`entryPhotos/${currentUser}/${eKey}/${key}`).remove();
-    document.getElementById('photo-lightbox').classList.add('hidden');
-    // Check if any photos remain
-    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
-    if (!snap.exists() || !Object.keys(snap.val()).length) {
-      const e = entries.find(x=>x.id===entryId);
-      if (e) { e.hasPhotos = false; scheduleSave(); }
-    }
-    await renderEntryPhotoGallery(entryId);
-    renderEntries();
-    showToast('Foto eliminada');
-  } catch(err) { showToast('⚠ Error', true); }
-}
-
-// ══════════════════════════════════════════════════
-//  INIT
-// ══════════════════════════════════════════════════
-window.addEventListener('DOMContentLoaded', () => {
-  const session = safeStorage.get('jd_session');
-  if (session) {
-    document.getElementById('login-user').value = session;
-    setTimeout(() => document.getElementById('login-pass').focus(), 300);
-  }
-  document.getElementById('auth-screen').classList.remove('hidden');
-
-  // Test conexión Firebase - usar .info/connected correctamente (sin prefijo 'jardin/')
-  setTimeout(() => {
-    const connRef = firebase.database().ref('.info/connected');
-    const timeout = setTimeout(() => {
-      console.warn('[Jardín] Firebase: sin respuesta tras 5s');
-    }, 5000);
-    connRef.once('value', snap => {
-      clearTimeout(timeout);
-      if (snap.val() === true) {
-        console.log('[Jardín] ✅ Firebase conectado desde: ' + location.hostname);
-      } else {
-        console.warn('[Jardín] Firebase: desconectado o offline');
-      }
-    }, err => {
-      clearTimeout(timeout);
-      console.error('[Jardín] ❌ Firebase error:', err);
-      const banner = document.createElement('div');
-      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:10px 16px;background:#e07a5f;color:#fff;font-family:monospace;font-size:12px;z-index:99999;text-align:center;line-height:1.5;cursor:pointer;';
-      const msg = err.message||err.code||String(err);
-      if(msg.includes('PERMISSION_DENIED')||msg.includes('permission')) {
-        banner.innerHTML = '⚠ Firebase bloqueó este dominio (<b>'+location.hostname+'</b>). Abrí Firebase Console → Realtime Database → Reglas → cambiá a: <code style="background:rgba(0,0,0,.3);padding:2px 6px;border-radius:3px">{"rules":{".read":true,".write":true}}</code> → Publicar <span style="margin-left:1rem;opacity:.7">[×]</span>';
-      } else {
-        banner.innerHTML = '⚠ Error conectando a Firebase: ' + msg + ' (dominio: '+location.hostname+') <span style="margin-left:1rem;opacity:.7">[×]</span>';
-      }
-      banner.onclick = () => banner.remove();
-      document.body.prepend(banner);
-    });
-  }, 1000);
-});
-</script>
-</body>
-</html>
+    await dbRef('groupPhotos/' + currentUser + '/' + gid + '/' +
