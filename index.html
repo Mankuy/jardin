@@ -934,13 +934,19 @@ async function doLogin(){
     let stored;
     try { stored=await dbGetTimeout(`users/${username}/hash`); }
     catch(de) {
-      const msg = de.message||de.code||String(de);
-      if(msg.includes('PERMISSION_DENIED')||msg.includes('permission')) {
-        errEl.textContent='⚠ Firebase bloqueó el acceso. Si estás en GitHub Pages, revisá las reglas de la base de datos en Firebase Console.';
-      } else if(msg.includes('fetch')||msg.includes('network')||msg.includes('Failed')) {
-        errEl.textContent='⚠ No se pudo conectar a Firebase. Revisá tu conexión a internet.';
+      var dmsg = (de && (de.message||de.code)) ? (de.message||de.code) : String(de);
+      var isPerm = dmsg.indexOf('PERMISSION_DENIED')!==-1 || dmsg.toLowerCase().indexOf('permission')!==-1;
+      var isNet  = dmsg.indexOf('fetch')!==-1 || dmsg.indexOf('network')!==-1 || dmsg.indexOf('Failed')!==-1 || dmsg.indexOf('Timeout')!==-1;
+      if(isPerm) {
+        errEl.innerHTML='<b>⚠ Firebase bloqueó el acceso.</b><br>'+
+          'Ir a: <a href="https://console.firebase.google.com" target="_blank" style="color:var(--accent)">console.firebase.google.com</a>'+
+          ' → tu proyecto → Realtime Database → Reglas → pegar:<br>'+
+          '<code style="font-size:.7rem;background:rgba(0,0,0,.3);padding:2px 6px;border-radius:3px">{"rules":{".read":true,".write":true}}</code>'+
+          ' → Publicar';
+      } else if(isNet) {
+        errEl.textContent='⚠ Sin conexión a Firebase. Revisá tu internet y recargá la página.';
       } else {
-        errEl.textContent='Error Firebase: '+msg;
+        errEl.textContent='Error Firebase: '+dmsg;
       }
       setBtnLoading('login-btn','login-btn-text',false,'Ingresar →');
       console.error('[Jardín] Firebase error en login:', de);
@@ -2261,14 +2267,14 @@ function findStrain(name) {
 // ── Caché de cepas en localStorage ──────────────────
 const STRAIN_CACHE_KEY = 'jd_strain_cache_v1';
 function getStrainCache() {
-  try { return JSON.parse(localStorage.getItem(STRAIN_CACHE_KEY) || '{}'); } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(STRAIN_CACHE_KEY) || '{}'); } catch(e) { return {}; }
 }
 function saveStrainCache(name, data) {
   try {
     const c = getStrainCache();
     c[normalizeStrain(name)] = data;
     localStorage.setItem(STRAIN_CACHE_KEY, JSON.stringify(c));
-  } catch {}
+  } catch(e) {}
 }
 
 // ── Promise.any polyfill (compatible con todos los browsers) ──
@@ -2555,4 +2561,147 @@ function openGroupLightbox(gid, key) {
 
 async function deleteGroupPhoto(gid, key) {
   try {
-    await dbRef('groupPhotos/' + currentUser + '/' + gid + '/' +
+    await dbRef('groupPhotos/' + currentUser + '/' + gid + '/' + key).remove();
+    if (groupPhotoCache[gid]) delete groupPhotoCache[gid][key];
+    document.getElementById('photo-lightbox').classList.add('hidden');
+    await renderGroupPhotoGallery(gid, 'group-photos-' + gid);
+    await renderGroupPhotoGallery(gid, 'mg-photo-gallery');
+    showToast('Foto eliminada');
+  } catch(e) { showToast('⚠ Error', true); }
+}
+
+// ══════════════════════════════════════════════════
+//  FOTOS DE COSECHAS (entry photos)
+// ══════════════════════════════════════════════════
+async function handleEntryPhotoUpload(files) {
+  if (!files || !files.length) return;
+  const eid = editingEntryId;
+  if (!eid) { showToast('⚠ Error: no hay cosecha seleccionada.', true); return; }
+  const eKey = 'entry_' + eid;
+  document.getElementById('ms-photo-uploading').style.display = 'inline';
+  try {
+    for (const file of Array.from(files)) {
+      const b64 = await compressImage(file);
+      const key = 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+      await dbRef(`entryPhotos/${currentUser}/${eKey}/${key}`).set(b64);
+    }
+    // Mark entry as having photos
+    const e = entries.find(x=>x.id===eid);
+    if (e) { e.hasPhotos = true; scheduleSave(); }
+    await renderEntryPhotoGallery(eid);
+    renderEntries();
+    showToast('✓ Foto guardada');
+  } catch(err) { showToast('⚠ Error al guardar foto: ' + err.message, true); }
+  finally {
+    document.getElementById('ms-photo-uploading').style.display = 'none';
+    document.getElementById('ms-photo-file').value = '';
+    document.getElementById('ms-photo-camera').value = '';
+  }
+}
+
+async function renderEntryPhotoGallery(entryId) {
+  const container = document.getElementById('ms-photo-gallery');
+  if (!container) return;
+  const eKey = 'entry_' + entryId;
+  try {
+    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
+    const photos = snap.exists() ? snap.val() : {};
+    const keys = Object.keys(photos);
+    if (!keys.length) { container.innerHTML = ''; return; }
+    container.innerHTML = keys.map(k =>
+      `<img class="photo-thumb" src="${photos[k]}" onclick="openEntryLightbox('${entryId}','${k}',\`${photos[k]}\`)" alt="foto"/>`
+    ).join('');
+  } catch(e) { container.innerHTML = ''; }
+}
+
+async function renderEntryPhotosInline(entryId) {
+  const eKey = 'entry_' + entryId;
+  try {
+    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
+    const photos = snap.exists() ? snap.val() : {};
+    const keys = Object.keys(photos);
+    if (!keys.length) return;
+    const html = keys.map(k =>
+      `<img class="photo-thumb" src="${photos[k]}" onclick="openEntryLightbox('${entryId}','${k}',\`${photos[k]}\`)" alt="foto"/>`
+    ).join('');
+    const t = document.getElementById('entry-photos-' + entryId);
+    if (t) t.innerHTML = html;
+    const c = document.getElementById('entry-photos-card-' + entryId);
+    if (c) c.innerHTML = html;
+  } catch(e) { /* silent */ }
+}
+
+function openEntryLightbox(entryId, key, src) {
+  lightboxPhotoKey = key;
+  // Re-use the main lightbox but set delete to entry path
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox-del-btn').onclick = () => deleteEntryPhoto(entryId, key);
+  document.getElementById('photo-lightbox').classList.remove('hidden');
+}
+
+async function deleteEntryPhoto(entryId, key) {
+  const eKey = 'entry_' + entryId;
+  try {
+    await dbRef(`entryPhotos/${currentUser}/${eKey}/${key}`).remove();
+    document.getElementById('photo-lightbox').classList.add('hidden');
+    // Check if any photos remain
+    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
+    if (!snap.exists() || !Object.keys(snap.val()).length) {
+      const e = entries.find(x=>x.id===entryId);
+      if (e) { e.hasPhotos = false; scheduleSave(); }
+    }
+    await renderEntryPhotoGallery(entryId);
+    renderEntries();
+    showToast('Foto eliminada');
+  } catch(err) { showToast('⚠ Error', true); }
+}
+
+// ══════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  const session = safeStorage.get('jd_session');
+  if (session) {
+    document.getElementById('login-user').value = session;
+    setTimeout(() => document.getElementById('login-pass').focus(), 300);
+  }
+  document.getElementById('auth-screen').classList.remove('hidden');
+
+  // Test REAL de Firebase: intenta una lectura de datos para detectar PERMISSION_DENIED
+  // .info/connected NO sirve — siempre dice OK aunque las reglas bloqueen lecturas
+  setTimeout(function() {
+    var testRef = firebase.database().ref('jardin/_ping');
+    var timer = setTimeout(function() {
+      console.warn('[Jardín] Firebase: sin respuesta en 8s (posible problema de red)');
+    }, 8000);
+    testRef.get().then(function() {
+      clearTimeout(timer);
+      console.log('[Jardín] ✅ Firebase OK — dominio: ' + location.hostname);
+    }).catch(function(err) {
+      clearTimeout(timer);
+      var msg = (err && (err.message || err.code)) ? (err.message || err.code) : String(err);
+      console.error('[Jardín] ❌ Firebase error:', msg);
+      var isPerm = msg.indexOf('PERMISSION_DENIED') !== -1 || msg.toLowerCase().indexOf('permission') !== -1;
+      var banner = document.createElement('div');
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:12px 16px;background:#c0392b;color:#fff;font-family:monospace;font-size:11.5px;z-index:99999;text-align:center;line-height:1.7;';
+      if (isPerm) {
+        banner.innerHTML =
+          '<b>⚠ Firebase bloqueó el acceso desde "' + location.hostname + '"</b><br>' +
+          'Para solucionarlo: Firebase Console → Realtime Database → Reglas → reemplazá todo con:<br>' +
+          '<code style="background:rgba(0,0,0,.35);padding:2px 8px;border-radius:3px">' +
+          '{"rules":{".read":true,".write":true}}</code> → Publicar' +
+          ' &nbsp;&nbsp;<button onclick="this.parentNode.remove()" style="background:none;border:1px solid rgba(255,255,255,.5);color:#fff;padding:2px 8px;cursor:pointer;font-family:monospace;border-radius:3px">✕ cerrar</button>';
+      } else {
+        banner.innerHTML =
+          '⚠ No se pudo conectar a Firebase: <b>' + msg + '</b><br>' +
+          'Revisá tu conexión a internet y recargá la página.' +
+          ' &nbsp;<button onclick="location.reload()" style="background:none;border:1px solid rgba(255,255,255,.5);color:#fff;padding:2px 8px;cursor:pointer;font-family:monospace;border-radius:3px">↺ Recargar</button>' +
+          ' &nbsp;<button onclick="this.parentNode.remove()" style="background:none;border:1px solid rgba(255,255,255,.5);color:#fff;padding:2px 8px;cursor:pointer;font-family:monospace;border-radius:3px">✕</button>';
+      }
+      document.body.prepend(banner);
+    });
+  }, 1200);
+});
+</script>
+</body>
+</html>
