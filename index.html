@@ -1590,9 +1590,11 @@ function confirmUpdateSeco(){
   const e = entries.find(x=>x.id===editingEntryId); if(!e) return;
 
   if (mode === 'set') {
-    const val=parseFloat(document.getElementById('ms-peso').value);
-    if(!val||val<=0){showToast('⚠ Ingresá un peso válido.',true);return;}
-    e.pesoSeco=val; e.estado='seco';
+    const raw=document.getElementById('ms-peso').value;
+    const val=parseFloat(raw)||0;
+    if(val<0){showToast('⚠ El peso no puede ser negativo.',true);return;}
+    e.pesoSeco=val;
+    e.estado = val>0 ? 'seco' : 'secando';
     // Clear partials if switching to manual total
     e.pesoParciales = [];
     scheduleSave();closeModal('modal-seco');renderEntries();updateTotals();
@@ -1600,7 +1602,7 @@ function confirmUpdateSeco(){
   } else {
     // In sum mode — total is already saved live, just close
     const total = e.pesoParciales ? e.pesoParciales.reduce((s,p)=>s+p.g,0) : e.pesoSeco;
-    if (!total || total <= 0) { showToast('⚠ Agregá al menos un parcial.', true); return; }
+    e.estado = total > 0 ? 'seco' : 'secando';
     closeModal('modal-seco');
     showToast(`✓ ${total.toFixed(1)}g secos de ${e.planta}`);
   }
