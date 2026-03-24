@@ -1456,7 +1456,7 @@ function renderEntries(){
       aH=`<div class="action-cell">${photoIcon}<button class="btn-update" style="background:rgba(127,184,90,.07);border-color:rgba(127,184,90,.25);color:var(--accent)" onclick="openSecoModal(${e.id})">📷 Editar</button><button class="btn-del" onclick="deleteEntry(${e.id})">✕ Eliminar</button></div>`;
     }
     const photoTrCols = cdiv>1 ? 7 : 6;
-    const photoTableRow = e.hasPhotos ? `<tr class="entry-photos-row"><td colspan="${photoTrCols}"><div class="entry-photos-strip"><span class="eps-icon">📷</span><div id="entry-photos-${e.id}" class="eps-gallery"></div></div></td></tr>` : '';
+    const photoTableRow = e.hasPhotos ? `<tr class="entry-photos-row" id="entry-photos-tr-${e.id}"><td colspan="${photoTrCols}"><div class="entry-photos-strip"><span class="eps-icon">📷</span><div id="entry-photos-${e.id}" class="eps-gallery"></div></div></td></tr>` : '';
     const tableRow=`<tr><td>${d}</td><td><span class="plant-badge"><span class="plant-badge-dot" style="background:${p.color}"></span>${e.planta}</span></td><td>${wH}</td>${cdiv>1?`<td>${wDiv}</td>`:''}<td>${sH}</td><td style="font-size:.68rem;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.nota||''}">${e.nota||'—'}</td><td>${aH}</td></tr>${photoTableRow}`;
     const card=`<div class="entry-card">
       <div class="entry-card-top">
@@ -1465,7 +1465,7 @@ function renderEntries(){
       </div>
       <div class="entry-card-mid"><div>${cardWeight}</div>${sH}</div>
       ${e.nota?`<div style="font-size:.68rem;color:var(--text3);margin-top:.4rem">${e.nota}</div>`:''}
-      ${e.hasPhotos?`<div class="entry-photos-strip entry-photos-card-strip"><span class="eps-icon">📷</span><div id="entry-photos-card-${e.id}" class="eps-gallery"></div></div>`:''}
+      ${e.hasPhotos?`<div class="entry-photos-strip entry-photos-card-strip" id="entry-photos-cardstrip-${e.id}"><span class="eps-icon">📷</span><div id="entry-photos-card-${e.id}" class="eps-gallery"></div></div>`:''}
       <div class="entry-card-actions">${cardActions}</div>
     </div>`;
     return {tableRow, card};
@@ -2673,12 +2673,21 @@ async function renderEntryPhotosInline(entryId) {
   const eKey = 'entry_' + entryId;
   try {
     const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
-    const photos = snap.exists() ? snap.val() : {};
+    const photos = snap.exists() && snap.val() ? snap.val() : {};
     const keys = Object.keys(photos);
-    if (!keys.length) return;
-    const html = keys.map(k =>
-      `<img class="photo-thumb" src="${photos[k]}" onclick="openEntryLightbox('${entryId}','${k}',\`${photos[k]}\`)" alt="foto"/>`
-    ).join('');
+    if (!keys.length) {
+      // Sin fotos: ocultar contenedores y actualizar flag
+      var tr = document.getElementById('entry-photos-tr-' + entryId);
+      if (tr) tr.remove();
+      var cs = document.getElementById('entry-photos-cardstrip-' + entryId);
+      if (cs) cs.remove();
+      var entry = entries.find(function(x){return x.id===entryId;});
+      if (entry && entry.hasPhotos) { entry.hasPhotos = false; scheduleSave(); }
+      return;
+    }
+    const html = keys.map(function(k) {
+      return '<img class="photo-thumb" src="' + photos[k] + '" onclick="openEntryLightbox(\'' + entryId + '\',\'' + k + '\',`' + photos[k] + '`)" alt="foto"/>';
+    }).join('');
     const t = document.getElementById('entry-photos-' + entryId);
     if (t) t.innerHTML = html;
     const c = document.getElementById('entry-photos-card-' + entryId);
@@ -2699,14 +2708,9 @@ async function deleteEntryPhoto(entryId, key) {
   try {
     await dbRef(`entryPhotos/${currentUser}/${eKey}/${key}`).remove();
     document.getElementById('photo-lightbox').classList.add('hidden');
-    // Check if any photos remain
-    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
-    if (!snap.exists() || !Object.keys(snap.val()).length) {
-      const e = entries.find(x=>x.id===entryId);
-      if (e) { e.hasPhotos = false; scheduleSave(); }
-    }
     await renderEntryPhotoGallery(entryId);
-    renderEntries();
+    // renderEntryPhotosInline actualiza/oculta el strip inline y el flag hasPhotos
+    await renderEntryPhotosInline(entryId);
     showToast('Foto eliminada');
   } catch(err) { showToast('⚠ Error', true); }
 }
