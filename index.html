@@ -2524,6 +2524,7 @@ function goToDryingEntries() {
 let currentPhotoPlantId = null;
 let currentPhotoGroupId = null;
 const groupPhotoCache = {}; // { gid: { key: base64 } }
+const entryPhotoCache = {}; // { entryId: { key: base64 } }
 let lightboxPhotoKey = null;
 
 async function compressImage(file, maxW=800, quality=0.72) {
