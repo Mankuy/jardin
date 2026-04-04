@@ -1228,7 +1228,14 @@ function showToast(msg,err){
   _toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
-function closeModal(id){document.getElementById(id).classList.remove('open');if(id==='modal-seco')editingEntryId=null;}
+function scrollToEntry(entryId){
+  if(!entryId)return;
+  setTimeout(function(){
+    var el=document.getElementById('entry-card-'+entryId)||document.getElementById('entry-row-'+entryId);
+    if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.transition='background .3s';el.style.background='rgba(127,184,90,.13)';setTimeout(function(){el.style.background='';},1500);}
+  },80);
+}
+function closeModal(id){var _sid=(id==='modal-seco')?editingEntryId:null;document.getElementById(id).classList.remove('open');if(id==='modal-seco'){editingEntryId=null;scrollToEntry(_sid);}}
 document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('click',ev=>{if(ev.target===el)closeModal(el.id);}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(m=>closeModal(m.id));});
 
@@ -1520,8 +1527,8 @@ function renderEntries(){
     }
     var photoTrCols = cdiv>1 ? 7 : 6;
     var photoTableRow = e.hasPhotos ? '<tr class="entry-photos-row" id="entry-photos-tr-'+e.id+'"><td colspan="'+photoTrCols+'"><div class="entry-photos-strip"><span class="eps-icon">📷</span><div id="entry-photos-'+e.id+'" class="eps-gallery"></div></div></td></tr>' : '';
-    var tableRow='<tr><td>'+d+'</td><td><span class="plant-badge"><span class="plant-badge-dot" style="background:'+p.color+'"></span>'+e.planta+'</span></td><td>'+wH+'</td>'+(cdiv>1?'<td>'+wDiv+'</td>':'')+'<td>'+sH+'</td><td style="font-size:.68rem;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(e.nota||'')+'">'+( e.nota||'—')+'</td><td>'+aH+'</td></tr>'+photoTableRow;
-    var card='<div class="entry-card"><div class="entry-card-top"><div class="entry-card-name"><span style="width:8px;height:8px;border-radius:50%;background:'+p.color+';display:inline-block;flex-shrink:0"></span>'+e.planta+'</div><div class="entry-card-date">'+d+' '+photoIcon+'</div></div><div class="entry-card-mid"><div>'+cardWeight+'</div>'+sH+'</div>'+(e.nota?'<div style="font-size:.68rem;color:var(--text3);margin-top:.4rem">'+e.nota+'</div>':'')+(e.hasPhotos?'<div class="entry-photos-strip entry-photos-card-strip" id="entry-photos-cardstrip-'+e.id+'"><span class="eps-icon">📷</span><div id="entry-photos-card-'+e.id+'" class="eps-gallery"></div></div>':'')+'<div class="entry-card-actions">'+cardActions+'</div></div>';
+    var tableRow='<tr id="entry-row-'+e.id+'"><td>'+d+'</td><td><span class="plant-badge"><span class="plant-badge-dot" style="background:'+p.color+'"></span>'+e.planta+'</span></td><td>'+wH+'</td>'+(cdiv>1?'<td>'+wDiv+'</td>':'')+'<td>'+sH+'</td><td style="font-size:.68rem;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(e.nota||'')+'">'+( e.nota||'—')+'</td><td>'+aH+'</td></tr>'+photoTableRow;
+    var card='<div class="entry-card" id="entry-card-'+e.id+'"><div class="entry-card-top"><div class="entry-card-name"><span style="width:8px;height:8px;border-radius:50%;background:'+p.color+';display:inline-block;flex-shrink:0"></span>'+e.planta+'</div><div class="entry-card-date">'+d+' '+photoIcon+'</div></div><div class="entry-card-mid"><div>'+cardWeight+'</div>'+sH+'</div>'+(e.nota?'<div style="font-size:.68rem;color:var(--text3);margin-top:.4rem">'+e.nota+'</div>':'')+(e.hasPhotos?'<div class="entry-photos-strip entry-photos-card-strip" id="entry-photos-cardstrip-'+e.id+'"><span class="eps-icon">📷</span><div id="entry-photos-card-'+e.id+'" class="eps-gallery"></div></div>':'')+'<div class="entry-card-actions">'+cardActions+'</div></div>';
     return {tableRow: tableRow, card: card};
   });
 
@@ -1643,6 +1650,7 @@ function removePartial(idx) {
 
 function confirmUpdateSeco(){
   const mode = document.getElementById('ms-mode').value;
+  const _scrollId = editingEntryId;
   const e = entries.find(function(x){return x.id===editingEntryId;}); if(!e) return;
   const nuevaPlanta = document.getElementById('ms-planta-sel').value;
   const nuevoPesoFresco = parseFloat(document.getElementById('ms-peso-fresco').value);
@@ -1658,11 +1666,13 @@ function confirmUpdateSeco(){
     e.pesoParciales = peso ? [{g: peso, ts: Date.now()}] : [];
     scheduleSave(); closeModal('modal-seco'); renderEntries(); updateTotals();
     showToast(peso ? ('✓ ' + peso + 'g secos de ' + e.planta) : ('⏳ ' + e.planta + ' sigue secando'));
+    scrollToEntry(_scrollId);
   } else {
     const total = e.pesoParciales ? e.pesoParciales.reduce(function(s,p){return s+p.g;},0) : (e.pesoSeco||0);
     e.estado = total > 0 ? 'seco' : 'secando';
     scheduleSave(); closeModal('modal-seco'); renderEntries(); updateTotals();
     showToast('✓ ' + (total||0).toFixed(1) + 'g secos de ' + e.planta);
+    scrollToEntry(_scrollId);
   }
 }
 
@@ -2758,9 +2768,10 @@ async function renderEntryPhotoGallery(entryId) {
     const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
     const photos = snap.exists() && snap.val() ? snap.val() : {};
     const keys = Object.keys(photos);
+    entryPhotoCache[entryId] = photos;
     if (!keys.length) { container.innerHTML = ''; return; }
     container.innerHTML = keys.map(function(k) {
-      return '<img class="photo-thumb" src="' + photos[k] + '" onclick="openEntryLightbox(\'' + entryId + '\',\'' + k + '\',`' + photos[k] + '`)" alt="foto"/>';
+      return '<img class="photo-thumb" src="' + photos[k] + '" onclick="openEntryLightbox(' + entryId + ',\'' + k + '\')" alt="foto"/>';
     }).join('');
     // Sincronizar flag hasPhotos si estaba desactivado y hay fotos reales
     var entry = entries.find(function(x){ return x.id === entryId; });
@@ -2807,8 +2818,9 @@ async function renderEntryPhotosInline(entryId) {
       if (entry && entry.hasPhotos) { entry.hasPhotos = false; scheduleSave(); }
       return;
     }
+    entryPhotoCache[entryId] = photos;
     const html = keys.map(function(k) {
-      return '<img class="photo-thumb" src="' + photos[k] + '" onclick="openEntryLightbox(\'' + entryId + '\',\'' + k + '\',`' + photos[k] + '`)" alt="foto"/>';
+      return '<img class="photo-thumb" src="' + photos[k] + '" onclick="openEntryLightbox(' + entryId + ',\'' + k + '\')" alt="foto"/>';
     }).join('');
     const t = document.getElementById('entry-photos-' + entryId);
     if (t) t.innerHTML = html;
@@ -2817,25 +2829,15 @@ async function renderEntryPhotosInline(entryId) {
   } catch(e) { /* silent */ }
 }
 
-function openEntryLightbox(entryId, key, src) {
+function openEntryLightbox(entryId, key) {
   lightboxPhotoKey = key;
-  var container = document.getElementById('ms-photo-gallery');
-  var imgs = container ? Array.from(container.querySelectorAll('img.photo-thumb')) : [];
-  var sourceImgs = imgs.length > 0 ? imgs : (function(){
-    var strip = document.getElementById('entry-photos-' + entryId) || document.getElementById('entry-photos-card-' + entryId);
-    return strip ? Array.from(strip.querySelectorAll('img.photo-thumb')) : [];
-  })();
-  if (sourceImgs.length > 0) {
-    var list = sourceImgs.map(function(img) {
-      var m = img.getAttribute('onclick') ? img.getAttribute('onclick').match(/openEntryLightbox\('[^']+','([^']+)'/) : null;
-      var k = m ? m[1] : key;
-      return { key: k, src: img.src, deleteFn: function(kk){ return function(){ deleteEntryPhoto(entryId, kk); }; }(k) };
-    });
-    var idx = list.findIndex(function(i){ return i.key === key; });
-    _openLightbox(list, Math.max(0, idx));
-  } else {
-    _openLightbox([{key: key, src: src, deleteFn: function(){ deleteEntryPhoto(entryId, key); }}], 0);
-  }
+  var cache = entryPhotoCache[entryId] || {};
+  var keys  = Object.keys(cache);
+  var list  = keys.map(function(k) {
+    return { key: k, src: cache[k], deleteFn: (function(kk){ return function(){ deleteEntryPhoto(entryId, kk); }; })(k) };
+  });
+  var idx = list.findIndex(function(i){ return i.key === key; });
+  _openLightbox(list.length ? list : [{key: key, src: cache[key]||'', deleteFn: function(){ deleteEntryPhoto(entryId, key); }}], Math.max(0, idx));
 }
 
 async function deleteEntryPhoto(entryId, key) {
@@ -2843,6 +2845,7 @@ async function deleteEntryPhoto(entryId, key) {
     const eKey = 'entry_' + entryId;
     try {
       await dbRef('entryPhotos/' + currentUser + '/' + eKey + '/' + key).remove();
+      if (entryPhotoCache[entryId]) delete entryPhotoCache[entryId][key];
       document.getElementById('photo-lightbox').classList.add('hidden');
       _lbList = []; _lbIndex = 0;
       await renderEntryPhotoGallery(entryId);
