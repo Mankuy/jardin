@@ -1228,11 +1228,13 @@ function showToast(msg,err){
   _toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
+var _secoScrollY=0;
 function scrollToEntry(entryId){
   if(!entryId)return;
   setTimeout(function(){
+    window.scrollTo(0,_secoScrollY);
     var el=document.getElementById('entry-card-'+entryId)||document.getElementById('entry-row-'+entryId);
-    if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.transition='background .3s';el.style.background='rgba(127,184,90,.13)';setTimeout(function(){el.style.background='';},1500);}
+    if(el){el.style.transition='background .3s';el.style.background='rgba(127,184,90,.13)';setTimeout(function(){el.style.background='';},1500);}
   },80);
 }
 function closeModal(id){var _sid=(id==='modal-seco')?editingEntryId:null;document.getElementById(id).classList.remove('open');if(id==='modal-seco'){editingEntryId=null;scrollToEntry(_sid);}}
@@ -1556,6 +1558,7 @@ function updateTotals(){
 }
 function openSecoModal(id){
   const e=entries.find(function(x){return x.id===id;});if(!e)return;
+  _secoScrollY=window.scrollY;
   editingEntryId=id;
   document.getElementById('ms-fecha').textContent=e.fecha.split('-').reverse().join('/');
   document.getElementById('ms-planta').textContent=e.planta;
