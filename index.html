@@ -751,8 +751,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     <div style="background:rgba(127,184,90,.06);border:1px solid rgba(127,184,90,.2);border-radius:4px;padding:1rem;margin-bottom:1.2rem;">
       <div style="font-size:.68rem;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.6rem;">✦ Autocompletar con IA</div>
       <div style="font-size:.72rem;color:var(--text2);margin-bottom:.8rem;line-height:1.6">Ingresá el nombre de la cepa y opcionalmente la fuente. Se buscarán los datos automáticamente.</div>
-      <div class="form-group" style="margin-bottom:.7rem"><label>Nombre de la cepa</label><input type="text" id="ai-strain-name" placeholder="ej: Wedding Cake" oninput="if(!document.getElementById('mp-nombre').dataset.manual){document.getElementById('mp-nombre').value=this.value;}"/></div>
-      <div class="form-group" style="margin-bottom:.8rem"><label>Fuente (opcional)</label><input type="text" id="ai-strain-source" placeholder="ej: banco, breeder..."/></div>
+      <div class="form-group" style="margin-bottom:.7rem"><label>Nombre de la cepa</label><input type="text" id="ai-strain-name" placeholder="ej: Wedding Cake" oninput="if(!document.getElementById('mp-nombre').dataset.manual){document.getElementById('mp-nombre').value=this.value;} scheduleAiAutofill();"/></div>
+      <div class="form-group" style="margin-bottom:.8rem"><label>Fuente (opcional)</label><input type="text" id="ai-strain-source" placeholder="ej: banco, breeder..." oninput="scheduleAiAutofill();"/></div>
       <button type="button" onclick="aiAutofill()" id="ai-btn" style="width:100%;padding:.7rem;background:none;border:1px solid rgba(127,184,90,.4);color:var(--accent);font-family:'DM Mono',monospace;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.6rem;">
         <span id="ai-btn-text">✦ Buscar y cargar datos</span>
       </button>
@@ -1936,6 +1936,8 @@ function openPlantModal(pid,presetGid){
   document.getElementById('mp-nombre').dataset.manual = p ? '1' : '';
   document.getElementById('ai-strain-source').value = '';
   document.getElementById('ai-error').style.display = 'none';
+  if (aiAutofillTimer) { clearTimeout(aiAutofillTimer); aiAutofillTimer = null; }
+  aiLastQuery = '';
   document.getElementById('modal-plant').classList.add('open');
   // Load photos
   currentPhotoPlantId = p ? p.id : null;
@@ -2416,9 +2418,25 @@ function _promiseAny(promises) {
   });
 }
 
-// ── IA paralela: lanza todos los modelos a la vez, gana el primero ──
+// ── IA paralela: lanza modelos primarios a la vez, gana el primero ──
+let aiAutofillTimer = null;
+let aiLastQuery = '';
+function scheduleAiAutofill() {
+  if (aiAutofillTimer) { clearTimeout(aiAutofillTimer); aiAutofillTimer = null; }
+  const editingId = (document.getElementById('mp-editing-id') || {}).value || '';
+  if (editingId) return; // solo en modo "nueva planta"
+  const nameEl = document.getElementById('ai-strain-name');
+  if (!nameEl) return;
+  const strainName = nameEl.value.trim();
+  if (strainName.length < 3) return;
+  const btn = document.getElementById('ai-btn');
+  if (btn && btn.disabled) return; // ya hay búsqueda en curso
+  aiAutofillTimer = setTimeout(function() { aiAutofillTimer = null; aiAutofill(); }, 900);
+}
+
 async function aiFetchRemote(prompt) {
-  const models = ['gemini','openai','mistral','llama','openai-large'];
+  const primary = ['gemini','openai','mistral'];
+  const fallback = ['llama','openai-large'];
   const tryModel = async (model) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 22000);
@@ -2432,14 +2450,26 @@ async function aiFetchRemote(prompt) {
       if (!txt || !txt.includes('{')) throw new Error('Sin datos');
       let parsed;
       try { parsed = JSON.parse(txt); } catch(e) {}
-      if (!parsed) { const s=txt.indexOf('{'),e=txt.lastIndexOf('}'); if(s!==-1&&e!==-1) try { parsed=JSON.parse(txt.slice(s,e+1)); } catch(e) {} }
+      if (!parsed) {
+        const m = txt.match(/\{[\s\S]*\}/);
+        if (m) { try { parsed = JSON.parse(m[0]); } catch(e) {} }
+      }
       if (!parsed) throw new Error('JSON inválido');
       return parsed;
     } finally { clearTimeout(t); }
   };
   const anyFn = (typeof Promise.any === 'function') ? Promise.any.bind(Promise) : _promiseAny;
-  return anyFn(models.map(function(m) { return tryModel(m); }))
-    .catch(function() { throw new Error('Servicio no disponible'); });
+  try {
+    return await anyFn(primary.map(function(m) { return tryModel(m); }));
+  } catch(e1) {
+    console.warn('[IA] modelos primarios fallaron:', e1);
+    try {
+      return await anyFn(fallback.map(function(m) { return tryModel(m); }));
+    } catch(e2) {
+      console.warn('[IA] modelos fallback fallaron:', e2);
+      throw new Error('Servicio no disponible');
+    }
+  }
 }
 
 async function aiAutofill() {
@@ -2451,6 +2481,10 @@ async function aiAutofill() {
   errEl.style.display = 'none';
 
   if (!strainName) { errEl.textContent = '⚠ Ingresá el nombre.'; errEl.style.display = 'block'; return; }
+  if (btn.disabled) return; // ya hay búsqueda en curso
+  const queryKey = strainName.toLowerCase() + '|' + source.toLowerCase();
+  if (queryKey === aiLastQuery) return; // misma consulta que la última
+  aiLastQuery = queryKey;
   btn.disabled = true; btnTxt.innerHTML = '⏳ Buscando…';
 
   try {
