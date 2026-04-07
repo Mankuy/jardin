@@ -2439,7 +2439,7 @@ async function aiFetchRemote(prompt) {
   const fallback = ['llama','openai-large'];
   const tryModel = async (model) => {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 22000);
+    const t = setTimeout(() => ctrl.abort(), 9000);
     try {
       const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
         + '?model=' + model + '&json=true&seed=' + Math.floor(Math.random()*99999)
@@ -2502,17 +2502,18 @@ async function aiAutofill() {
       if (cache[ck] && !source) {
         parsed = cache[ck]; origin = 'caché';
       } else {
-        // 3. IA remota paralela (todos los modelos a la vez)
+        // 3. IA remota paralela (todos los modelos a la vez) con timeout global
         btnTxt.innerHTML = '⏳ Consultando IA…';
         const sourceStr = source ? ' by ' + source : '';
         const schemaEx = '{"nombre":"' + strainName + '","sativa":50,"indica":50,"thc":"20%","cbd":"menor 1%","floracion":"8-9 semanas","origen":"Parent A x Parent B","breeder":"Seed Bank","aroma":"descripcion aroma","gusto":"descripcion gusto","efecto":"descripcion efecto","colorHoja":"verde oscuro","perfil":"perfil cultivo 2-3 oraciones"}';
         const p = 'You are a cannabis genetics expert. Return ONLY valid JSON for the strain "' + strainName + '"' + sourceStr + '. All text in Spanish except proper names. Schema: ' + schemaEx + ' sativa+indica=100. Return JSON only, no markdown.';
-        parsed = await aiFetchRemote(p);
+        const globalTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('Tiempo de espera agotado')), 12000));
+        parsed = await Promise.race([aiFetchRemote(p), globalTimeout]);
         if (parsed && !parsed.error) { saveStrainCache(strainName, parsed); origin = 'IA'; }
       }
     }
 
-    if (!parsed) throw new Error('No se encontraron datos.');
+    if (!parsed) throw new Error('No se encontraron datos. Probá otro nombre o completá manualmente.');
     if (parsed.error) throw new Error('Cepa no encontrada. Verificá el nombre.');
 
     document.getElementById('mp-nombre').value    = parsed.nombre    || strainName;
