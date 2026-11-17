@@ -8,8 +8,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" onerror="document.title='⚠ Error cargando Firebase'"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js" onerror="document.title='⚠ Error cargando Firebase'"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<!-- CryptoJS para garantizar compatibilidad de encriptación de contraseñas (soluciona error en PC) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <!-- Fuentes -->
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;1,6..72,300&display=swap" rel="stylesheet">
 <style>
@@ -359,38 +357,6 @@ header{padding:2rem 3rem 1.3rem;border-bottom:1px solid var(--border);display:fl
     </div>
     <div class="splash-user" id="splash-user"></div>
     <button class="splash-enter" onclick="enterAppFromSplash()">Entrar →</button>
-  </div>
-</div>
-
-<!-- ═══ FIREBASE SETUP OVERLAY (se muestra si las reglas bloquean el acceso) ═══ -->
-<div id="firebase-setup-overlay" style="display:none;position:fixed;inset:0;background:#0f130e;z-index:99998;overflow-y:auto;padding:2rem 1rem;">
-  <div style="max-width:520px;margin:0 auto;font-family:'DM Mono',monospace;">
-    <div style="text-align:center;margin-bottom:2rem;">
-      <div style="font-size:2.5rem;margin-bottom:.5rem;">⚙️</div>
-      <div style="font-family:'Playfair Display',serif;font-size:1.6rem;color:#f0f4eb;margin-bottom:.3rem;">Configuración requerida</div>
-      <div style="font-size:.72rem;color:#5a6b50;letter-spacing:.1em;text-transform:uppercase;">Firebase · Reglas de acceso</div>
-    </div>
-    <div style="background:#1a2116;border:1px solid #2d3d27;border-radius:6px;padding:1.5rem;margin-bottom:1.2rem;">
-      <div style="font-size:.7rem;color:#e07a5f;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.8rem;">⚠ Problema detectado</div>
-      <div style="font-size:.82rem;color:#d4dcc8;line-height:1.7;">Firebase bloqueó el acceso a la base de datos desde <b id="fso-domain" style="color:#7fb85a"></b>.<br>Esto ocurre cuando las reglas de seguridad no permiten lecturas públicas.</div>
-    </div>
-    <div style="background:#1a2116;border:1px solid #2d3d27;border-radius:6px;padding:1.5rem;margin-bottom:1.2rem;">
-      <div style="font-size:.7rem;color:#7fb85a;letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem;">✅ Cómo solucionarlo — 3 pasos</div>
-      <div style="font-size:.78rem;color:#d4dcc8;line-height:2;">
-        <b style="color:#c8a84b">1.</b> Ir a <a href="https://console.firebase.google.com" target="_blank" style="color:#7fb85a;text-decoration:underline">console.firebase.google.com</a><br>
-        <b style="color:#c8a84b">2.</b> Abrir tu proyecto → <b>Realtime Database</b> → <b>Reglas</b><br>
-        <b style="color:#c8a84b">3.</b> Reemplazar todo el contenido con:
-      </div>
-      <div style="background:#0f130e;border:1px solid #2d3d27;border-radius:4px;padding:.8rem 1rem;margin-top:.8rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;">
-        <code style="font-size:.8rem;color:#7fb85a;word-break:break-all;">{"rules":{".read":true,".write":true}}</code>
-        <button onclick="navigator.clipboard&&navigator.clipboard.writeText('{\"rules\":{\".read\":true,\".write\":true}}').then(function(){var b=document.getElementById('fso-copy-btn');b.textContent='✓ Copiado';setTimeout(function(){b.textContent='Copiar';},2000);})" id="fso-copy-btn" style="background:none;border:1px solid #2d3d27;color:#8fa07e;font-family:'DM Mono',monospace;font-size:.65rem;padding:.35rem .7rem;border-radius:3px;cursor:pointer;white-space:nowrap;flex-shrink:0">Copiar</button>
-      </div>
-      <div style="font-size:.7rem;color:#5a6b50;margin-top:.6rem;">Luego hacer clic en <b style="color:#d4dcc8">Publicar</b>.</div>
-    </div>
-    <button onclick="checkFirebaseAndProceed()" style="width:100%;padding:.9rem;background:#7fb85a;color:#0f130e;border:none;font-family:'DM Mono',monospace;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:500;">
-      ↺ Ya lo hice · Verificar conexión
-    </button>
-    <div id="fso-status" style="text-align:center;font-size:.72rem;color:#5a6b50;margin-top:.8rem;min-height:1.2rem;"></div>
   </div>
 </div>
 
@@ -874,14 +840,6 @@ if (!firebase.apps.length) {
   });
 }
 
-// Auth anónima: permite que las reglas "auth != null" (default de Firebase) funcionen
-// sin que el usuario tenga que configurar nada. Se ejecuta una sola vez al cargar.
-if (firebase.auth) {
-  firebase.auth().signInAnonymously().catch(function(e) {
-    console.warn('[Jardin] Anon auth:', e.message);
-  });
-}
-
 const dbRef = path => firebase.database().ref('jardin/' + path);
 const dbGet = async path => { const s = await dbRef(path).get(); return s.exists() ? s.val() : null; };
 const dbSet = async (path, data) => dbRef(path).set(data);
@@ -902,7 +860,7 @@ const safeStorage = {
 // ══════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════
-let currentUser=null, groups=[], plants=[], entries=[], trash=[];
+let currentUser=null, currentUid=null, groups=[], plants=[], entries=[], trash=[];
 let activeFilter='all', editingEntryId=null, saveTimer=null;
 let _lbList = [];
 let _lbIndex = 0;
@@ -943,48 +901,21 @@ function togglePlant(id) {
 }
 
 // ══════════════════════════════════════════════════
-//  AUTH
-// ══════════════════════════════════════════════════
-async function sha256(s){
-  // 1. CryptoJS (CDN)
-  if (typeof CryptoJS !== 'undefined') {
-    return CryptoJS.SHA256(s).toString();
-  }
-  // 2. Web Crypto API (solo en contextos seguros: HTTPS/localhost)
-  if (typeof crypto !== 'undefined' && crypto.subtle) {
-    try {
-      const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
-      return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
-    } catch(e) {}
-  }
-  // 3. Fallback puro JS (funciona en CUALQUIER contexto, incluyendo file:// en móvil)
-  function sha256js(str) {
-    const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
-    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
-    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
-    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
-    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
-    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
-    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
-    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
-    let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;
-    const bytes=new TextEncoder().encode(str);
-    const bits=bytes.length*8;
-    const padded=new Uint8Array(Math.ceil((bytes.length+9)/64)*64);
-    padded.set(bytes); padded[bytes.length]=0x80;
-    const dv=new DataView(padded.buffer); dv.setUint32(padded.length-4,bits);
-    const rr=(v,n)=>(v>>>n)|(v<<(32-n));
-    for(let off=0;off<padded.length;off+=64){
-      const w=new Int32Array(64);
-      for(let i=0;i<16;i++) w[i]=dv.getInt32(off+i*4);
-      for(let i=16;i<64;i++){const s0=rr(w[i-15]>>>0,7)^rr(w[i-15]>>>0,18)^(w[i-15]>>>3);const s1=rr(w[i-2]>>>0,17)^rr(w[i-2]>>>0,19)^(w[i-2]>>>10);w[i]=(w[i-16]+s0+w[i-7]+s1)|0;}
-      let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;
-      for(let i=0;i<64;i++){const S1=rr(e>>>0,6)^rr(e>>>0,11)^rr(e>>>0,25);const ch=(e&f)^((~e)&g);const t1=(h+S1+ch+K[i]+w[i])|0;const S0=rr(a>>>0,2)^rr(a>>>0,13)^rr(a>>>0,22);const maj=(a&b)^(a&c)^(b&c);const t2=(S0+maj)|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;}
-      h0=(h0+a)|0;h1=(h1+b)|0;h2=(h2+c)|0;h3=(h3+d)|0;h4=(h4+e)|0;h5=(h5+f)|0;h6=(h6+g)|0;h7=(h7+h)|0;
-    }
-    return [h0,h1,h2,h3,h4,h5,h6,h7].map(v=>(v>>>0).toString(16).padStart(8,'0')).join('');
-  }
-  return sha256js(s);
+//  AUTH (Firebase Authentication · email+contraseña)
+// El "usuario" de la app se mapea a un email interno. El dominio .invalid
+// nunca resuelve: Firebase no puede mandar mails a nadie por error.
+const AUTH_DOMAIN = '@jardin.invalid';
+const userToEmail = u => u + AUTH_DOMAIN;
+
+function authErrMsg(e){
+  const c = (e && e.code) || '';
+  if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found' || c === 'auth/invalid-email') return 'Usuario o contraseña incorrectos.';
+  if (c === 'auth/too-many-requests') return 'Demasiados intentos. Esperá unos minutos e intentá de nuevo.';
+  if (c === 'auth/network-request-failed') return '⚠ Sin conexión. Revisá tu internet y recargá la página.';
+  if (c === 'auth/email-already-in-use') return 'Ese usuario ya existe.';
+  if (c === 'auth/weak-password') return 'Contraseña: mínimo 6 caracteres.';
+  if (c === 'auth/operation-not-allowed') return '⚠ El login por contraseña no está habilitado en Firebase.';
+  return 'Error: ' + ((e && (e.message || e.code)) || String(e));
 }
 
 function switchAuthTab(tab,btn){
@@ -1001,100 +932,57 @@ function setBtnLoading(btnId,txtId,loading,txt){
 }
 
 async function doLogin(){
+  const errEl=document.getElementById('login-error'); errEl.textContent='';
   try {
     const username=document.getElementById('login-user').value.trim().toLowerCase();
     const password=document.getElementById('login-pass').value;
-    const errEl=document.getElementById('login-error'); errEl.textContent='';
-    
     if(!username||!password){errEl.textContent='Completá usuario y contraseña.';return;}
-    // Firebase no permite . # $ [ ] en paths — estos caracteres causan "Invalid token in path"
-    if(/[.#$\[\]]/.test(username)){errEl.textContent='El usuario no puede contener: . # $ [ ]';return;}
-    
     setBtnLoading('login-btn','login-btn-text',true,'Ingresando…');
-    
-    let hash;
-    try { hash=await sha256(password+username); }
-    catch(he) { errEl.textContent='Error de encriptación: '+he.message; setBtnLoading('login-btn','login-btn-text',false,'Ingresar →'); return; }
-    
-    let stored;
-    try { stored=await dbGetTimeout(`users/${username}/hash`); }
-    catch(de) {
-      var dmsg = (de && (de.message||de.code)) ? (de.message||de.code) : String(de);
-      var isPerm = dmsg.indexOf('PERMISSION_DENIED')!==-1 || dmsg.toLowerCase().indexOf('permission')!==-1;
-      var isNet  = dmsg.indexOf('fetch')!==-1 || dmsg.indexOf('network')!==-1 || dmsg.indexOf('Failed')!==-1 || dmsg.indexOf('Timeout')!==-1;
-      if(isPerm) {
-        showFirebaseSetupScreen();
-        errEl.textContent='⚠ Firebase bloqueó el acceso. Ver instrucciones arriba.';
-      } else if(isNet) {
-        errEl.textContent='⚠ Sin conexión a Firebase. Revisá tu internet y recargá la página.';
-      } else {
-        errEl.textContent='Error Firebase: '+dmsg;
-      }
-      setBtnLoading('login-btn','login-btn-text',false,'Ingresar →');
-      console.error('[Jardín] Firebase error en login:', de);
-      return;
-    }
-    
-    if(!stored||stored!==hash){
-        errEl.textContent='Usuario o contraseña incorrectos.';
-        setBtnLoading('login-btn','login-btn-text',false,'Ingresar →');
-        return;
-    }
-    
-    const data=await dbGetTimeout(`users/${username}/data`)||{groups:[],plants:[],entries:[],trash:[]};
-    safeStorage.set('jd_session',username);
-    bootApp(username,data);
+    // Si el login funciona, onAuthStateChanged (más abajo) carga los datos y entra a la app.
+    await firebase.auth().signInWithEmailAndPassword(userToEmail(username), password);
   } catch(e) {
-    const errEl=document.getElementById('login-error');
-    const msg=e.message||e.code||String(e);
-    errEl.textContent='Error: '+msg;
-    console.error('[Jardín] Error completo en login:', e);
+    errEl.textContent=authErrMsg(e);
+    console.error('[Jardín] Error en login:', e);
   } finally {
     setBtnLoading('login-btn','login-btn-text',false,'Ingresar →');
   }
 }
 
 async function doRegister(){
+  const errEl=document.getElementById('reg-error');errEl.textContent='';
   try {
     const username=document.getElementById('reg-user').value.trim().toLowerCase();
     const password=document.getElementById('reg-pass').value;
     const pass2=document.getElementById('reg-pass2').value;
-    const errEl=document.getElementById('reg-error');errEl.textContent='';
-    
+
     if(!username||!password){errEl.textContent='Completá todos los campos.';return;}
     if(username.length<3){errEl.textContent='Usuario: mínimo 3 caracteres.';return;}
+    if(!/^[a-z0-9_-]+$/.test(username)){errEl.textContent='Usuario: solo letras, números, _ y -';return;}
     if(password.length<6){errEl.textContent='Contraseña: mínimo 6 caracteres.';return;}
     if(password!==pass2){errEl.textContent='Las contraseñas no coinciden.';return;}
-    // Firebase no permite . # $ [ ] en paths
-    if(/[.#$\[\]]/.test(username)){errEl.textContent='El usuario no puede contener: . # $ [ ]';return;}
-    
+
     setBtnLoading('reg-btn','reg-btn-text',true,'Creando…');
-    
-    const existing=await dbGetTimeout(`users/${username}/hash`);
-    if(existing){
-        errEl.textContent='Ese usuario ya existe.';
-        setBtnLoading('reg-btn','reg-btn-text',false,'Crear cuenta →');
-        return;
-    }
-    
-    const hash=await sha256(password+username);
-    const initData={groups:[],plants:[],entries:[],trash:[]};
-    await dbSet(`users/${username}/hash`,hash);
-    await dbSet(`users/${username}/data`,initData);
-    
-    safeStorage.set('jd_session',username);
-    bootApp(username,initData);
+    // Cuenta nueva: onAuthStateChanged entra a la app con datos vacíos.
+    await firebase.auth().createUserWithEmailAndPassword(userToEmail(username), password);
   } catch(e) {
-    const msg=e.message||e.code||String(e);
-    const errEl=document.getElementById('reg-error');
-    if(msg.includes('PERMISSION_DENIED')||msg.includes('permission')) {
-      errEl.textContent='⚠ Firebase bloqueó el acceso. Si usás GitHub Pages, revisá las reglas de Firebase.';
-    } else {
-      errEl.textContent='Error: '+msg;
-    }
+    errEl.textContent=authErrMsg(e);
     console.error('[Jardín] Error en registro:', e);
   } finally {
     setBtnLoading('reg-btn','reg-btn-text',false,'Crear cuenta →');
+  }
+}
+
+// Único punto de entrada a la app: login, registro y sesión restaurada pasan por acá.
+async function onSignedIn(user){
+  const username=(user.email||'').split('@')[0];
+  try {
+    const data=await dbGetTimeout(`users/${user.uid}/data`)||{groups:[],plants:[],entries:[],trash:[]};
+    currentUid=user.uid;
+    bootApp(username,data);
+  } catch(e) {
+    const msg=(e&&(e.message||e.code))||String(e);
+    document.getElementById('login-error').textContent='⚠ No se pudieron cargar tus datos: '+msg;
+    console.error('[Jardín] Error cargando datos:', e);
   }
 }
 
@@ -1104,7 +992,7 @@ function scheduleSave(){
   setSyncDot('saving'); clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     try {
-      await dbSet(`users/${currentUser}/data`, {
+      await dbSet(`users/${currentUid}/data`, {
         groups:  groups.filter(Boolean),
         plants:  plants.filter(Boolean),
         entries: entries.filter(Boolean),
@@ -1193,7 +1081,8 @@ function navigateToPlant(pid) {
 
 function doLogout(){
   clearTimeout(saveTimer);safeStorage.remove('jd_session');
-  currentUser=null;groups=[];plants=[];entries=[];trash=[];
+  firebase.auth().signOut();
+  currentUser=null;currentUid=null;groups=[];plants=[];entries=[];trash=[];
   document.getElementById('splash-screen').classList.add('hidden');
   document.getElementById('app').style.display='none';
   document.getElementById('login-user').value='';document.getElementById('login-pass').value='';
@@ -1458,7 +1347,7 @@ async function addEntry(){
     try {
       for (var i=0; i<stagedEntryPhotos.length; i++) {
         var photoKey = 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-        await dbRef('entryPhotos/' + currentUser + '/' + eKey + '/' + photoKey).set(stagedEntryPhotos[i]);
+        await dbRef('entryPhotos/' + currentUid + '/' + eKey + '/' + photoKey).set(stagedEntryPhotos[i]);
       }
       newEntry.hasPhotos = true;
       scheduleSave();
@@ -2603,7 +2492,7 @@ async function handlePhotoUpload(files) {
     for (const file of Array.from(files)) {
       const b64 = await compressImage(file);
       const key = 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-      await dbRef(`photos/${currentUser}/${pid}/${key}`).set(b64);
+      await dbRef(`photos/${currentUid}/${pid}/${key}`).set(b64);
     }
     await renderPhotoGallery(pid, 'mp-photo-gallery', true);
     // Also refresh plant card if visible
@@ -2620,7 +2509,7 @@ async function renderPhotoGallery(pid, containerId, editable) {
   const container = document.getElementById(containerId);
   if (!container) return;
   try {
-    const snap = await dbRef(`photos/${currentUser}/${pid}`).get();
+    const snap = await dbRef(`photos/${currentUid}/${pid}`).get();
     const photos = snap.exists() ? snap.val() : {};
     const keys = Object.keys(photos);
     if (!keys.length) { container.innerHTML = editable ? '' : ''; return; }
@@ -2677,7 +2566,7 @@ function openLightbox(pid, key, src) {
 async function deletePhoto(pid, key) {
   confirmDanger('Eliminar foto', '¿Seguro que deseas eliminar esta foto?', async function() {
     try {
-      await dbRef('photos/' + currentUser + '/' + pid + '/' + key).remove();
+      await dbRef('photos/' + currentUid + '/' + pid + '/' + key).remove();
       document.getElementById('photo-lightbox').classList.add('hidden');
       _lbList = []; _lbIndex = 0;
       await renderPhotoGallery(pid, 'mp-photo-gallery', true);
@@ -2696,7 +2585,7 @@ async function renderGroupPhotoGallery(gid, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
   try {
-    const snap = await dbRef('groupPhotos/' + currentUser + '/' + gid).get();
+    const snap = await dbRef('groupPhotos/' + currentUid + '/' + gid).get();
     const photos = snap.exists() ? snap.val() : {};
     const keys = Object.keys(photos);
     groupPhotoCache[gid] = photos;
@@ -2724,7 +2613,7 @@ async function handleGroupPhotoUpload(files, gid) {
     for (const file of Array.from(files)) {
       const b64 = await compressImage(file);
       const key = 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-      await dbRef('groupPhotos/' + currentUser + '/' + targetGid + '/' + key).set(b64);
+      await dbRef('groupPhotos/' + currentUid + '/' + targetGid + '/' + key).set(b64);
     }
     // Refresca ambos contenedores (accordion + modal si está abierto)
     await renderGroupPhotoGallery(targetGid, 'group-photos-' + targetGid);
@@ -2758,7 +2647,7 @@ function openGroupLightbox(gid, key) {
 async function deleteGroupPhoto(gid, key) {
   confirmDanger('Eliminar foto', '¿Seguro que deseas eliminar esta foto?', async function() {
     try {
-      await dbRef('groupPhotos/' + currentUser + '/' + gid + '/' + key).remove();
+      await dbRef('groupPhotos/' + currentUid + '/' + gid + '/' + key).remove();
       if (groupPhotoCache[gid]) delete groupPhotoCache[gid][key];
       document.getElementById('photo-lightbox').classList.add('hidden');
       _lbList = []; _lbIndex = 0;
@@ -2782,7 +2671,7 @@ async function handleEntryPhotoUpload(files) {
     for (const file of Array.from(files)) {
       const b64 = await compressImage(file);
       const key = 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-      await dbRef(`entryPhotos/${currentUser}/${eKey}/${key}`).set(b64);
+      await dbRef(`entryPhotos/${currentUid}/${eKey}/${key}`).set(b64);
     }
     // Mark entry as having photos
     const e = entries.find(x=>x.id===eid);
@@ -2803,7 +2692,7 @@ async function renderEntryPhotoGallery(entryId) {
   if (!container) return;
   const eKey = 'entry_' + entryId;
   try {
-    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
+    const snap = await dbRef(`entryPhotos/${currentUid}/${eKey}`).get();
     const photos = snap.exists() && snap.val() ? snap.val() : {};
     const keys = Object.keys(photos);
     entryPhotoCache[entryId] = photos;
@@ -2830,7 +2719,7 @@ async function syncEntryPhotoFlags() {
   for (var i = 0; i < toCheck.length; i++) {
     try {
       var e = toCheck[i];
-      var snap = await dbRef('entryPhotos/' + currentUser + '/entry_' + e.id).get();
+      var snap = await dbRef('entryPhotos/' + currentUid + '/entry_' + e.id).get();
       if (snap.exists() && snap.val() && Object.keys(snap.val()).length) {
         e.hasPhotos = true;
         changed = true;
@@ -2843,7 +2732,7 @@ async function syncEntryPhotoFlags() {
 async function renderEntryPhotosInline(entryId) {
   const eKey = 'entry_' + entryId;
   try {
-    const snap = await dbRef(`entryPhotos/${currentUser}/${eKey}`).get();
+    const snap = await dbRef(`entryPhotos/${currentUid}/${eKey}`).get();
     const photos = snap.exists() && snap.val() ? snap.val() : {};
     const keys = Object.keys(photos);
     if (!keys.length) {
@@ -2882,7 +2771,7 @@ async function deleteEntryPhoto(entryId, key) {
   confirmDanger('Eliminar foto', '¿Seguro que deseas eliminar esta foto?', async function() {
     const eKey = 'entry_' + entryId;
     try {
-      await dbRef('entryPhotos/' + currentUser + '/' + eKey + '/' + key).remove();
+      await dbRef('entryPhotos/' + currentUid + '/' + eKey + '/' + key).remove();
       if (entryPhotoCache[entryId]) delete entryPhotoCache[entryId][key];
       document.getElementById('photo-lightbox').classList.add('hidden');
       _lbList = []; _lbIndex = 0;
@@ -2897,42 +2786,8 @@ async function deleteEntryPhoto(entryId, key) {
 //  FIREBASE RULES CHECK + INIT
 // ══════════════════════════════════════════════════
 
-// ── Muestra la pantalla de setup de Firebase ──────────────────────────
-function showFirebaseSetupScreen() {
-  var el = document.getElementById('fso-domain');
-  if (el) el.textContent = location.hostname || 'localhost';
-  document.getElementById('firebase-setup-overlay').style.display = 'block';
-  document.getElementById('auth-screen').classList.add('hidden');
-}
-
-// ── Re-verifica la conexión cuando el usuario hace clic en "Ya lo hice" ─
-function checkFirebaseAndProceed() {
-  var statusEl = document.getElementById('fso-status');
-  if (statusEl) statusEl.textContent = '⏳ Verificando…';
-  try {
-    firebase.database().ref('jardin/_ping').get()
-      .then(function() {
-        if (statusEl) statusEl.textContent = '✅ Conexión OK — cargando…';
-        setTimeout(function() {
-          document.getElementById('firebase-setup-overlay').style.display = 'none';
-          document.getElementById('auth-screen').classList.remove('hidden');
-          var s = safeStorage.get('jd_session');
-          if (s) { document.getElementById('login-user').value = s; document.getElementById('login-pass').focus(); }
-        }, 500);
-      })
-      .catch(function(err) {
-        var msg = (err && (err.message || err.code)) ? String(err.message || err.code) : String(err);
-        var isPerm = msg.indexOf('PERMISSION_DENIED') !== -1 || msg.toLowerCase().indexOf('permission') !== -1;
-        if (statusEl) statusEl.textContent = isPerm ? '⚠ Sigue bloqueado. Publicá las reglas.' : '⚠ ' + msg;
-      });
-  } catch(ex) {
-    if (statusEl) statusEl.textContent = '⚠ ' + String(ex);
-  }
-}
-
 // ── INIT ──────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function() {
-  // 1. Mostrar login INMEDIATAMENTE (nunca bloquear al usuario)
   var domEl = document.getElementById('auth-domain-info');
   if (domEl) domEl.textContent = 'Dominio: ' + (location.hostname || 'local');
   var session = safeStorage.get('jd_session');
@@ -2940,22 +2795,14 @@ window.addEventListener('DOMContentLoaded', function() {
   document.getElementById('auth-screen').classList.remove('hidden');
   if (session) setTimeout(function() { document.getElementById('login-pass').focus(); }, 250);
 
-  // 2. En paralelo: test silencioso de Firebase (solo actúa si hay PERMISSION_DENIED)
-  try {
-    firebase.database().ref('jardin/_ping').get()
-      .then(function() { console.log('[Jardin] Firebase OK — ' + location.hostname); })
-      .catch(function(err) {
-        var msg = (err && (err.message || err.code)) ? String(err.message || err.code) : String(err);
-        var isPerm = msg.indexOf('PERMISSION_DENIED') !== -1 || msg.toLowerCase().indexOf('permission') !== -1;
-        if (isPerm) {
-          showFirebaseSetupScreen();
-        } else {
-          console.warn('[Jardin] Firebase advertencia:', msg);
-        }
-      });
-  } catch(ex) {
-    console.error('[Jardin] Firebase init error:', ex);
-  }
+  firebase.auth().onAuthStateChanged(function(user) {
+    if (!user) return;
+    // Restos de la auth anónima anterior: no son una cuenta, se descartan.
+    if (user.isAnonymous) { firebase.auth().signOut(); return; }
+    if (currentUid === user.uid) return;
+    safeStorage.set('jd_session', (user.email || '').split('@')[0]);
+    onSignedIn(user);
+  });
 });
 </script>
 </body>
